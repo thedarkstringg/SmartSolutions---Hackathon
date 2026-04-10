@@ -41,6 +41,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
 # Authentication Models
 class RegisterRequest(BaseModel):
     name: str
