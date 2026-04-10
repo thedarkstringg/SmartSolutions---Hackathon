@@ -98,16 +98,39 @@ confidence_score = (url_score * 0.40) + (visual_score * 0.35) + (behavior_score 
 - **Visual Analysis (35%)**: Perceptual hashing against known phishing sites
 - **Behavior Analysis (25%)**: Runtime browser behavior signals
 
-## Verdict Thresholds (main.py:337-342)
+## Verdict Thresholds with Behavioral Priority (main.py:336-355)
+
+**Key Rule**: If ANY behavioral signals are triggered, minimum verdict is **"suspicious"**
 
 ```python
-if confidence_score < 0.35:
-    verdict = "safe"
-elif confidence_score < 0.65:
-    verdict = "suspicious"
+has_behavior_warnings = len(behavior_result.get("triggered_signals", [])) > 0
+
+if has_behavior_warnings:
+    # Behavioral signals detected - at minimum suspicious
+    if confidence_score >= 0.65:
+        verdict = "phishing"
+    else:
+        # Boost confidence if behavior signals present
+        confidence_score = max(confidence_score, 0.40)
+        verdict = "suspicious"
 else:
-    verdict = "phishing"
+    # No behavioral signals - use standard thresholds
+    if confidence_score < 0.35:
+        verdict = "safe"
+    elif confidence_score < 0.65:
+        verdict = "suspicious"
+    else:
+        verdict = "phishing"
 ```
+
+### Verdict Logic
+| Condition | Result |
+|-----------|--------|
+| **Any Behavioral Signal** + confidence >= 0.65 | 🔴 **PHISHING** |
+| **Any Behavioral Signal** + confidence < 0.65 | 🟡 **SUSPICIOUS** (confidence boosted to 0.40) |
+| No Behavioral Signals + confidence < 0.35 | 🟢 **SAFE** |
+| No Behavioral Signals + 0.35 ≤ confidence < 0.65 | 🟡 **SUSPICIOUS** |
+| No Behavioral Signals + confidence >= 0.65 | 🔴 **PHISHING** |
 
 ## Test Results
 
