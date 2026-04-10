@@ -121,7 +121,7 @@ async function checkUrlInOpenCTI(targetUrl) {
   }
 }
 
-// === VIRUSTOTAL INTEGRATION ===
+// === VIRUSTOTAL INTEGRATION (FIXED) ===
 async function checkUrlInVirusTotal(targetUrl) {
   // Skip if no API key configured
   if (!VIRUSTOTAL_API_KEY || VIRUSTOTAL_API_KEY.includes('YOUR_VIRUSTOTAL')) {
@@ -129,17 +129,25 @@ async function checkUrlInVirusTotal(targetUrl) {
   }
 
   try {
-    // Encode URL for VirusTotal API
-    const urlEncoded = new URLSearchParams();
-    urlEncoded.append('url', targetUrl);
+    // 1. Generate URL ID: base64 encode URL without padding
+    const urlId = btoa(targetUrl).replace(/=/g, "");
 
-    const response = await fetch(VIRUSTOTAL_URL, {
-      method: 'POST',
-      headers: {
-        'x-apikey': VIRUSTOTAL_API_KEY
-      },
-      body: urlEncoded
+    // 2. Try to get existing report first (faster than posting a new scan)
+    const response = await fetch(`https://www.virustotal.com/api/v3/urls/${urlId}`, {
+      method: 'GET',
+      headers: { 'x-apikey': VIRUSTOTAL_API_KEY }
     });
+
+    if (response.status === 404) {
+      // If report doesn't exist, submit it for analysis
+      console.log(`[VirusTotal] No report found for ${targetUrl} - Submitting for scan...`);
+      const postResponse = await fetch(VIRUSTOTAL_URL, {
+        method: 'POST',
+        headers: { 'x-apikey': VIRUSTOTAL_API_KEY },
+        body: new URLSearchParams({ url: targetUrl })
+      });
+      return { checked: true, malicious: false, engines: 0, pending: true };
+    }
 
     if (!response.ok) {
       console.warn(`[VirusTotal] API error: ${response.status}`);
@@ -147,37 +155,14 @@ async function checkUrlInVirusTotal(targetUrl) {
     }
 
     const data = await response.json();
-    const analysisId = data.data?.id;
-
-    if (!analysisId) {
-      console.warn('[VirusTotal] No analysis ID returned');
-      return { checked: false, malicious: false, engines: 0 };
-    }
-
-    // Get analysis results
-    const analysisUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
-    const analysisResponse = await fetch(analysisUrl, {
-      headers: {
-        'x-apikey': VIRUSTOTAL_API_KEY
-      }
-    });
-
-    if (!analysisResponse.ok) {
-      return { checked: false, malicious: false, engines: 0 };
-    }
-
-    const analysisData = await analysisResponse.json();
-    const stats = analysisData.data?.attributes?.stats || {};
+    const stats = data.data?.attributes?.last_analysis_stats || {};
+    const maliciousCount = stats.malicious || 0;
 
     console.log(`[VirusTotal] Results for ${targetUrl}:`, stats);
 
-    // Check if URL is flagged as malicious
-    const maliciousCount = stats.malicious || 0;
-    const isMalicious = maliciousCount > 0;
-
     return {
       checked: true,
-      malicious: isMalicious,
+      malicious: maliciousCount > 0,
       engines: maliciousCount,
       stats: stats
     };
@@ -275,11 +260,16 @@ function updateBadge(tabId, verdict) {
 
 // === HEALTH CHECK ===
 async function checkBackendHealth() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
   try {
     const response = await fetch(`${BACKEND_URL}/health`, {
       method: "GET",
-      timeout: 5000,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await response.json();
@@ -287,6 +277,7 @@ async function checkBackendHealth() {
       return true;
     }
   } catch (error) {
+    clearTimeout(timeoutId);
     console.warn(
       "CyberClowns backend unreachable. Analysis disabled.",
       error.message
@@ -295,37 +286,43 @@ async function checkBackendHealth() {
   return false;
 }
 
-// === DUAL DETECTION: VirusTotal + Backend ML ===
-chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-  // Only check main frame navigations (not iframes)
+// === IMPROVED DETECTION: onCommitted (fires earlier, blocks faster) ===
+chrome.webNavigation.onCommitted.addListener(async (details) => {
+  // frameId 0 = Main tab, avoid sub-resources
   if (details.frameId === 0 && details.url.startsWith('http')) {
     const url = details.url;
-    console.log(`\n[🔍 DUAL DETECTION] Analyzing: ${url}`);
 
-    let detectionResults = {
-      url: url,
-      timestamp: new Date().toISOString(),
-      virustotal: { checked: false, malicious: false, engines: 0 },
-      blocked: false
-    };
+    // Whitelist: Never check these domains
+    const whitelist = [
+      'localhost', '127.0.0.1', '192.168', '10.0',
+      'chrome://', 'about:',
+      'google.com', 'github.com', 'microsoft.com', 'apple.com',
+      'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
+      'linkedin.com', 'reddit.com', 'stackoverflow.com', 'amazon.com',
+      'cloudflare.com', 'aws.amazon.com'
+    ];
+
+    // Check if URL is in whitelist
+    if (whitelist.some(domain => url.includes(domain))) {
+      console.log(`[✅ WHITELISTED] ${url}`);
+      updateBadge(details.tabId, "safe");
+      return;
+    }
+
+    console.log(`\n[🔍 VIRUSTOTAL CHECK] Analyzing: ${url}`);
+    updateBadge(details.tabId, "analyzing");
 
     try {
-      // 1️⃣ Check VirusTotal
-      console.log('[1/2] Checking VirusTotal...');
       const vtResults = await checkUrlInVirusTotal(url);
-      detectionResults.virustotal = vtResults;
+
       if (vtResults.checked) {
         console.log(`[VirusTotal] Result: ${vtResults.malicious ? `🚨 MALICIOUS (${vtResults.engines} engines)` : '✅ SAFE'}`);
-      } else {
-        console.log('[VirusTotal] Not checked (API not configured or unavailable)');
       }
 
-      // 2️⃣ Decision: Block if VirusTotal flags it
-      const shouldBlock = vtResults.checked && vtResults.malicious;
-
-      if (shouldBlock) {
+      // Decision: Block if VirusTotal flags it
+      if (vtResults.malicious) {
         console.log(`\n🛑 BLOCKING URL - VirusTotal detected threat (${vtResults.engines} engines)`);
-        detectionResults.blocked = true;
+        updateBadge(details.tabId, "phishing");
 
         // Log to Splunk if available
         if (typeof ExtensionSplunkLogger !== 'undefined') {
@@ -339,20 +336,63 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         }
 
         // Redirect to blocked page
-        const blockPageUrl = chrome.runtime.getURL("blocked.html");
+        const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?url=${encodeURIComponent(url)}`;
         chrome.tabs.update(details.tabId, { url: blockPageUrl });
       } else {
         console.log(`\n✅ PASSED VirusTotal check - Allowing URL`);
-        console.log(`[Note] Backend ML analysis will run on page load for additional protection`);
+        updateBadge(details.tabId, "safe");
       }
 
     } catch (error) {
-      console.error('[Dual Detection] Error:', error);
+      console.error('[VirusTotal Check] Error:', error);
+      updateBadge(details.tabId, "error");
     }
   }
 });
 
+// === MESSAGE HANDLING (Popup Communication) ===
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "GET_RESULT") {
+    const tabId = request.payload.tabId;
+    let result = analysisCache.get(tabId);
+
+    if (!result) {
+      // Extract domain from sender tab URL
+      const tabUrl = sender.tab?.url || "";
+      let domain = "Unknown";
+      try {
+        const url = new URL(tabUrl);
+        domain = url.hostname;
+      } catch (e) {
+        // Invalid URL
+      }
+
+      result = {
+        verdict: "safe",
+        confidence_score: 1.0,
+        url_score: 0,
+        visual_score: 0,
+        behavior_score: 0,
+        warnings: [],
+        scan_timestamp: new Date().toISOString(),
+        site_info: { domain },
+      };
+    }
+    sendResponse(result);
+  }
+
+  if (request.type === "RESCAN") {
+    const tabId = request.payload.tabId;
+    console.log(`Re-scan requested for tab ${tabId}`);
+    // Clear cache for fresh analysis
+    analysisCache.delete(tabId);
+  }
+});
+
 // === MAIN ANALYSIS FLOW ===
+// DISABLED: Backend ML analysis deactivated
+// Extension now uses VirusTotal only for threat detection
+/*
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "ANALYZE_PAGE") {
     (async () => {
@@ -406,17 +446,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Update badge based on verdict
         const verdict = result.verdict || "unknown";
         updateBadge(tabId, verdict);
-
-        // 🆕 AUTO-BLOCK if high phishing confidence from backend
-        if (result.verdict === "phishing" && result.confidence_score >= 0.65) {
-          console.log(`[Backend Analysis] HIGH PHISHING DETECTED: ${payload.url} (confidence: ${result.confidence_score})`);
-          try {
-            const blockPageUrl = chrome.runtime.getURL("blocked.html");
-            chrome.tabs.update(tabId, { url: blockPageUrl });
-          } catch (e) {
-            console.warn("[Backend Analysis] Could not auto-block tab:", e);
-          }
-        }
 
         // 🆕 Log to Splunk
         if (typeof ExtensionSplunkLogger !== 'undefined') {
@@ -485,8 +514,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })();
   }
 });
+*/
 
 // === TAB EVENTS: Clear cache on navigation ===
+// Disabled: Not needed since ML analysis is disabled
+/*
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (
     changeInfo.status === "complete" &&
@@ -500,6 +532,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     updateBadge(tabId, "pending");
   }
 });
+*/
 
 // === TAB EVENTS: Clean up on removal ===
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -511,23 +544,9 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // === EXTENSION STARTUP ===
 chrome.runtime.onInstalled.addListener(() => {
-  checkBackendHealth();
-  console.log("CyberClowns extension installed");
+  console.log("CyberClowns extension installed - VirusTotal protection active");
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  checkBackendHealth();
-  console.log("CyberClowns extension started");
-});
-
-
-// === EXTENSION STARTUP ===
-chrome.runtime.onInstalled.addListener(() => {
-  checkBackendHealth();
-  console.log("CyberClowns extension installed");
-});
-
-chrome.runtime.onStartup.addListener(() => {
-  checkBackendHealth();
   console.log("CyberClowns extension started");
 });

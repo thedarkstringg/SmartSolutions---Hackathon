@@ -53,11 +53,16 @@ async function initializePopup() {
 
 // === BACKEND STATUS CHECK ===
 async function checkBackendStatus() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+
   try {
     const response = await fetch("http://localhost:8000/health", {
       method: "GET",
-      timeout: 3000,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       backendStatus.className = "backend-status connected";
@@ -67,6 +72,7 @@ async function checkBackendStatus() {
       backendStatus.title = "Backend error";
     }
   } catch (error) {
+    clearTimeout(timeoutId);
     backendStatus.className = "backend-status disconnected";
     backendStatus.title = "Backend disconnected";
   }

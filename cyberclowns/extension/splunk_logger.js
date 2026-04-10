@@ -5,7 +5,7 @@ class ExtensionSplunkLogger {
   static SPLUNK_HOST = "34.200.46.182";
   static SPLUNK_PORT = "8088";
   static SPLUNK_TOKEN = "08467373-6f2b-4d5c-a099-222c25412616";
-  static SPLUNK_URL = `http://${this.SPLUNK_HOST}:${this.SPLUNK_PORT}/services/collector/event`; // Changed to HTTP
+  static SPLUNK_URL = "http://34.200.46.182:8088/services/collector/event";
 
   static async sendEvent(eventType, data, sourcetype = "cyberclowns:extension") {
     const payload = {
