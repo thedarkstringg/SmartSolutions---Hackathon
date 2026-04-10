@@ -229,14 +229,18 @@ async function checkBackendHealth() {
 // Intercept navigation and check against OpenCTI threat intelligence
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Only check main frame navigations (not iframes)
-  if (details.frameId === 0) {
+  if (details.frameId === 0 && details.url.startsWith('http')) {
+    console.log(`[Navigation] Checking URL: ${details.url}`);
+
     const isMalicious = await checkUrlInOpenCTI(details.url);
 
     if (isMalicious) {
-      console.log(`[OpenCTI] Blocked malicious URL: ${details.url}`);
+      console.log(`[OpenCTI] BLOCKED malicious URL: ${details.url}`);
       // Redirect to blocked page
       const blockPageUrl = chrome.runtime.getURL("blocked.html");
       chrome.tabs.update(details.tabId, { url: blockPageUrl });
+    } else {
+      console.log(`[OpenCTI] URL passed OpenCTI check: ${details.url}`);
     }
   }
 });
@@ -295,6 +299,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Update badge based on verdict
         const verdict = result.verdict || "unknown";
         updateBadge(tabId, verdict);
+
+        // 🆕 AUTO-BLOCK if high phishing confidence from backend
+        if (result.verdict === "phishing" && result.confidence_score >= 0.65) {
+          console.log(`[Backend Analysis] HIGH PHISHING DETECTED: ${payload.url} (confidence: ${result.confidence_score})`);
+          try {
+            const blockPageUrl = chrome.runtime.getURL("blocked.html");
+            chrome.tabs.update(tabId, { url: blockPageUrl });
+          } catch (e) {
+            console.warn("[Backend Analysis] Could not auto-block tab:", e);
+          }
+        }
 
         // 🆕 Log to Splunk
         if (typeof ExtensionSplunkLogger !== 'undefined') {
