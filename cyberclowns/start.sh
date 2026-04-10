@@ -18,6 +18,10 @@ cd "$SCRIPT_DIR/backend" || {
     exit 1
 }
 
+echo "📦 Installing dependencies..."
+pip install -r requirements.txt
+echo ""
+
 # Check for .env file
 if [ ! -f .env ]; then
     echo "⚠️  No .env file found!"
