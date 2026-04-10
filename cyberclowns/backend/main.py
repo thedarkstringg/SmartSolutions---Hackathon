@@ -41,9 +41,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
-
 # Authentication Models
 class RegisterRequest(BaseModel):
     name: str
@@ -487,6 +484,10 @@ async def startup_event():
     """Test Splunk connection on startup."""
     logger.info("🚀 Tilloff - Advanced Phishing Analyzer Starting...")
     await test_splunk_connection()
+
+
+# Mount static files (MUST BE LAST - after all API routes)
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
 
 if __name__ == "__main__":
