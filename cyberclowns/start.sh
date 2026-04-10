@@ -5,12 +5,18 @@
 
 set -e  # Exit on error
 
+clear
+
 echo ""
 echo "🚀 Starting CyberClowns Backend..."
 echo ""
 
 # Change to backend directory
-cd "$(dirname "$0")/backend" || exit 1
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/backend" || {
+    echo "Error: Could not change to backend directory"
+    exit 1
+}
 
 # Check for .env file
 if [ ! -f .env ]; then
@@ -29,18 +35,18 @@ if [ ! -f data/known_hashes.json ]; then
     echo "📸 Building pHash database for the first time..."
     echo "   (This may take 2-5 minutes. Downloading screenshots from 12 known sites...)"
     echo ""
-    python scripts/build_phash_db.py
+    python3 scripts/build_phash_db.py
     echo ""
 fi
 
 # Check for ML model
 if [ ! -f models/phishing_detector.pkl ]; then
     echo "🤖 Building ML phishing detector model..."
-    python scripts/build_ml_model.py
+    python3 scripts/build_ml_model.py
     echo ""
 fi
 
-# Check for dependencies
+# Check for uvicorn
 if ! command -v uvicorn &> /dev/null; then
     echo "❌ uvicorn not found! Install dependencies:"
     echo "    pip install -r requirements.txt"
@@ -54,4 +60,3 @@ echo ""
 
 # Start the server
 uvicorn main:app --reload --port 8000
-
