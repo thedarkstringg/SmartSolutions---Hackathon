@@ -32,7 +32,7 @@ async def analyze_behavior(behavior_signals: dict) -> dict:
         triggered_signals.append("Obfuscated JavaScript detected")
 
     # Check suspicious cookies
-    if behavior_signals.get("suspicious_cookies", False):
+    if behavior_signals.get("has_suspicious_cookies", False):
         score += 0.15
         triggered_signals.append("Suspicious cookie usage")
 
