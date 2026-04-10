@@ -1,0 +1,115 @@
+Input form transfer detect
+
+
+
+manifest.json
+
+{
+  "manifest_version": 3,
+  "name": "Security Sentinel - Anti-Leak",
+  "version": "1.0",
+  "description": "Şifrələrin kənar serverlərə sızdırılmasının qarşısını alır və təhlükə anında saytı bloklayır.",
+  "permissions": [
+    "webRequest",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
+
+
+
+content.js
+// Səhifədəki şifrə xanalarını tapırıq
+const passwordInputs = document.querySelectorAll('input[type="password"]');
+
+passwordInputs.forEach(input => {
+    input.addEventListener('input', (event) => {
+        let sensitiveData = event.target.value;
+        
+        // Şifrə ən azı 3 simvol olduqda arxa plana (background) göndəririk ki, yoxlasın
+        if (sensitiveData.length >= 3) {
+            chrome.runtime.sendMessage({
+                type: "SENSITIVE_INPUT_DETECTED",
+                data: sensitiveData
+            });
+        }
+    });
+});
+
+
+
+background.js
+let currentSensitiveData = "";
+
+// 1. Content script-dən gələn şifrəni qəbul edirik
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "SENSITIVE_INPUT_DETECTED") {
+        currentSensitiveData = message.data;
+    }
+});
+
+// 2. Bütün gedən şəbəkə sorğularını izləyirik
+chrome.webRequest.onBeforeRequest.addListener(
+    function(details) {
+        // Əgər izlənəcək məlumat yoxdursa və ya çox qısadırsa, davam et
+        if (!currentSensitiveData || currentSensitiveData.length < 3) return;
+
+        let initiatorUrl = details.initiator; // Səhifənin öz ünvanı
+        let targetUrl = details.url;          // Məlumatın göndərildiyi ünvan
+
+        // Əgər initiator (göndərən) yoxdursa, yoxlamanı burax (bəzən brauzerin öz daxili sorğularında olur)
+        if (!initiatorUrl) return;
+
+        // Sorğunun gövdəsini (Request Body) oxuyuruq
+        let requestBody = "";
+        if (details.requestBody) {
+            if (details.requestBody.formData) {
+                requestBody = JSON.stringify(details.requestBody.formData);
+            } else if (details.requestBody.raw) {
+                try {
+                    let decoder = new TextDecoder('utf-8');
+                    requestBody = decoder.decode(details.requestBody.raw[0].bytes);
+                } catch (e) {
+                    console.error("Məlumatı oxumaq mümkün olmadı:", e);
+                }
+            }
+        }
+
+        // Şifrənin sorğuda olub-olmadığını yoxlayırıq
+        let isDataLeaking = requestBody.includes(currentSensitiveData) || targetUrl.includes(currentSensitiveData);
+
+        if (isDataLeaking) {
+            try {
+                // URL-lərdən domen adlarını çıxarırıq
+                let initiatorDomain = new URL(initiatorUrl).hostname; 
+                let targetDomain = new URL(targetUrl).hostname;       
+
+                // Əgər kənar domenə (cross-origin) məlumat gedirsə
+                if (initiatorDomain !== targetDomain) {
+                    console.warn(`🚨 BLOKLANDI! ${initiatorDomain} məlumatı ${targetDomain} ünvanına sızdırırdı!`);
+                    
+                    // Zərərli fəaliyyət edən tabı (səhifəni) anında bağlayırıq
+                    chrome.tabs.remove(details.tabId);
+                }
+            } catch (e) {
+                console.error("URL yoxlanışında xəta:", e);
+            }
+        }
+    },
+    {urls: ["<all_urls>"]},
+    ["requestBody"]
+);

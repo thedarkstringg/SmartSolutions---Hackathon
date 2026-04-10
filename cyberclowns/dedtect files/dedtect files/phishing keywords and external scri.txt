@@ -1,0 +1,95 @@
+phishing keywords and external scripts block
+
+content.js
+const currentHost = window.location.hostname;
+
+// --- 1. QLOBAL FİŞİNQ AÇAR SÖZLƏRİ (ENGLISH KEYWORDS) ---
+function checkPhishingKeywords() {
+    const pageText = document.body.innerText.toLowerCase();
+    const phishingKeywords = [
+        "verify your account", "account suspended", "immediate action required",
+        "unauthorized login attempt", "update your billing", "payment declined",
+        "confirm your identity", "account will be closed", "click here to secure",
+        "security alert: verify", "reset your password immediately",
+        "unusual activity detected", "package delivery failed", 
+        "your account is restricted", "login to confirm"
+    ];
+
+    let matchCount = 0;
+    phishingKeywords.forEach(keyword => {
+        if (pageText.includes(keyword)) {
+            matchCount++;
+        }
+    });
+
+    // Əgər ən azı 2 şübhəli söz varsa, təhlükə siqnalı ver
+    if (matchCount >= 2) {
+        chrome.runtime.sendMessage({
+            type: "PHISHING_KEYWORDS_DETECTED",
+            data: { host: currentHost }
+        });
+    }
+}
+
+// --- 2. ZƏRƏRLİ XARİCİ SKRİPTLƏR (BLACKLIST) ---
+function checkExternalScripts() {
+    const scripts = document.querySelectorAll('script[src]');
+    
+    // Qara siyahıya salınmış zərərli domenlər
+    const blacklistDomains = [
+        "hacker-domain.com", "malicious-scripts.ru", 
+        "steal-data.net", "keylogger-api.org"
+    ];
+
+    scripts.forEach(script => {
+        try {
+            const scriptUrl = new URL(script.src);
+            const scriptHost = scriptUrl.hostname;
+
+            // Skript kənar domendən gəlirsə yoxla
+            if (scriptHost !== currentHost) {
+                const isBlacklisted = blacklistDomains.some(badDomain => scriptHost.includes(badDomain));
+                if (isBlacklisted) {
+                    chrome.runtime.sendMessage({
+                        type: "MALICIOUS_SCRIPT_DETECTED",
+                        data: { host: currentHost, scriptSrc: scriptHost }
+                    });
+                }
+            }
+        } catch (e) { 
+            // src atributu düzgün URL deyilsə (məsələn, base64 və ya lokal fayldırsa) xətanı iqnor et
+        }
+    });
+}
+
+// Səhifə tam yükləndikdə yalnız bu iki yoxlamanı işə sal
+window.addEventListener('load', () => {
+    checkPhishingKeywords();
+    checkExternalScripts();
+});
+
+
+
+background.js
+// --- SƏHİFƏDƏN GƏLƏN TƏHLÜKƏ SİQNALLARININ İDARƏSİ ---
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    
+    // Yalnızca tab mövcuddursa səhifəni bağlamaq üçün köməkçi funksiya
+    const closeTab = (tabId) => {
+        if (tabId) {
+            chrome.tabs.remove(tabId).catch(() => {});
+        }
+    };
+
+    // 1. Fişinq sözləri tapılarsa
+    if (message.type === "PHISHING_KEYWORDS_DETECTED") {
+        console.warn(`🚨 FİŞİNQ MƏZMUNU! ${message.data.host} səhifəsində sosial mühəndislik sözləri tapıldı.`);
+        closeTab(sender.tab?.id);
+    } 
+    
+    // 2. Zərərli skript tapılarsa
+    else if (message.type === "MALICIOUS_SCRIPT_DETECTED") {
+        console.warn(`🚨 VİRUSLU SKRİPT! ${message.data.host} -> ${message.data.scriptSrc} ünvanından zərərli kod çəkir.`);
+        closeTab(sender.tab?.id);
+    }
+});

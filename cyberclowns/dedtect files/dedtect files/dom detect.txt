@@ -1,0 +1,82 @@
+dom detect
+  content.js
+
+// --- YENİ: Gizli Həssas Xanaların (Autofill Trap) Yoxlanılması ---
+function checkHiddenInputs() {
+    // Səhifədəki şifrə xanalarını tapırıq
+    // Ehtiyac olarsa bura kart xanalarını da əlavə edə bilərsiniz: 'input[name*="card"]', 'input[name*="cvv"]'
+    const sensitiveInputs = document.querySelectorAll('input[type="password"]');
+    const currentHost = window.location.hostname;
+
+    sensitiveInputs.forEach(input => {
+        // Elementin brauzer tərəfindən render edilmiş yekun CSS üslublarını alırıq
+        const style = window.getComputedStyle(input);
+        
+        // Elementin ekrandakı real ölçülərini və koordinatlarını alırıq
+        const rect = input.getBoundingClientRect();
+
+        // Şübhəli CSS xüsusiyyətlərini yoxlayırıq:
+        const isHiddenByOpacity = style.opacity === '0';
+        const isHiddenByVisibility = style.visibility === 'hidden' || style.display === 'none';
+        const isHiddenBySize = rect.width <= 1 || rect.height <= 1; // 1 piksel və ya daha kiçik
+        const isHiddenByPosition = parseInt(style.left) < -900 || parseInt(style.top) < -900; // Ekrandan kənara atılıb
+        const isHiddenByClip = style.clip === 'rect(0px, 0px, 0px, 0px)'; // Clip vasitəsilə kəsilib
+
+        // Əgər bu xüsusiyyətlərdən hər hansı biri varsa, bu xana qəsdən gizlədilib
+        if (isHiddenByOpacity || isHiddenByVisibility || isHiddenBySize || isHiddenByPosition || isHiddenByClip) {
+            
+            console.warn("Gizli həssas xana aşkarlandı:", input);
+
+            // Təhlükə siqnalını arxa plana göndəririk
+            chrome.runtime.sendMessage({
+                type: "HIDDEN_INPUT_DETECTED",
+                data: {
+                    host: currentHost
+                }
+            });
+        }
+    });
+}
+
+// Səhifə tam yükləndikdə yoxlamanı işə salırıq
+window.addEventListener('load', checkHiddenInputs);
+
+// ƏLAVƏ QORUMA: Əgər sayt sonradan (JavaScript ilə) gizli xana əlavə edərsə, onu da tutmaq üçün:
+// Səhifədəki dəyişiklikləri izləyirik (DOM MutationObserver)
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length > 0) {
+            checkHiddenInputs();
+        }
+    });
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+
+
+background.js 
+
+// 1. Content script-dən gələn mesajları qəbul edirik
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    
+    // 1-ci Funksiya: Keylogger/Məlumat sızıntısı yoxlaması
+    if (message.type === "SENSITIVE_INPUT_DETECTED") {
+        currentSensitiveData = message.data;
+    } 
+    
+    // 2-ci Funksiya: Fişinq forması aşkarlanarsa
+    else if (message.type === "PHISHING_FORM_DETECTED") {
+        console.warn(`🚨 FİŞİNQ TƏHLÜKƏSİ! ${message.data.currentHost} məlumatları gizlicə ${message.data.targetHost} ünvanına göndərir!`);
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.remove(sender.tab.id);
+        }
+    }
+    
+    // 3-cü Funksiya: YENİ - Gizli input aşkarlanarsa
+    else if (message.type === "HIDDEN_INPUT_DETECTED") {
+        console.warn(`🚨 GİZLİ İNPUT TƏHLÜKƏSİ! ${message.data.host} səhifəsində məlumatları oğurlamaq üçün gizlədilmiş xanalar var!`);
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.remove(sender.tab.id);
+        }
+    }
+});

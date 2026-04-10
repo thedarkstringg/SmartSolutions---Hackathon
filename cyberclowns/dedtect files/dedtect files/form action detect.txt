@@ -1,0 +1,115 @@
+form action detect 
+
+content.js 
+// --- YENİ: Fişinq Formalarının (Saxta Action URL) Yoxlanılması ---
+function checkPhishingForms() {
+    const forms = document.querySelectorAll('form');
+    const currentHost = window.location.hostname; // Məsələn: www.facebook.com
+
+    forms.forEach(form => {
+        const actionUrl = form.getAttribute('action');
+        
+        // Əgər formanın action atributu varsa yoxlayırıq
+        if (actionUrl) {
+            try {
+                // Nisbi (relative) URL-ləri tam URL-ə çevirmək üçün
+                const urlObj = new URL(actionUrl, window.location.href);
+                const targetHost = urlObj.hostname;
+
+                // TƏHLÜKƏ: Əgər action URL-in domeni hazırkı domenlə eyni deyilsə
+                if (targetHost && targetHost !== currentHost) {
+                    // Təhlükə siqnalını arxa plana (background) göndəririk
+                    chrome.runtime.sendMessage({
+                        type: "PHISHING_FORM_DETECTED",
+                        data: {
+                            currentHost: currentHost,
+                            targetHost: targetHost
+                        }
+                    });
+                }
+            } catch (e) {
+                // action ünvanı keçərsiz formatdadırsa, səssizcə keçirik
+            }
+        }
+    });
+}
+
+// Səhifə tam yükləndikdə yoxlamanı işə salırıq
+window.addEventListener('load', checkPhishingForms);
+
+
+
+
+background.js
+let currentSensitiveData = "";
+
+// 1. Content script-dən gələn mesajları qəbul edirik
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    
+    // Əvvəlki funksiya: Keylogger/Məlumat sızıntısı yoxlaması
+    if (message.type === "SENSITIVE_INPUT_DETECTED") {
+        currentSensitiveData = message.data;
+    } 
+    
+    // YENİ: Fişinq forması aşkarlanarsa
+    else if (message.type === "PHISHING_FORM_DETECTED") {
+        console.warn(`🚨 FİŞİNQ TƏHLÜKƏSİ! ${message.data.currentHost} səhifəsi məlumatları gizlicə ${message.data.targetHost} ünvanına göndərməyə çalışır!`);
+        
+        // Zərərli formanın olduğu tabı anında bağlayırıq
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.remove(sender.tab.id);
+        }
+    }
+});
+
+// 2. Bütün gedən şəbəkə sorğularını izləyirik (Məlumat sızıntısına qarşı)
+chrome.webRequest.onBeforeRequest.addListener(
+    function(details) {
+        // Əgər izlənəcək məlumat yoxdursa və ya çox qısadırsa, davam et
+        if (!currentSensitiveData || currentSensitiveData.length < 3) return;
+
+        let initiatorUrl = details.initiator; // Səhifənin öz ünvanı
+        let targetUrl = details.url;          // Məlumatın göndərildiyi ünvan
+
+        // Əgər initiator (göndərən) yoxdursa, yoxlamanı burax (bəzən brauzerin öz daxili sorğularında olur)
+        if (!initiatorUrl) return;
+
+        // Sorğunun gövdəsini (Request Body) oxuyuruq
+        let requestBody = "";
+        if (details.requestBody) {
+            if (details.requestBody.formData) {
+                requestBody = JSON.stringify(details.requestBody.formData);
+            } else if (details.requestBody.raw) {
+                try {
+                    let decoder = new TextDecoder('utf-8');
+                    requestBody = decoder.decode(details.requestBody.raw[0].bytes);
+                } catch (e) {
+                    console.error("Məlumatı oxumaq mümkün olmadı:", e);
+                }
+            }
+        }
+
+        // Şifrənin sorğuda olub-olmadığını yoxlayırıq
+        let isDataLeaking = requestBody.includes(currentSensitiveData) || targetUrl.includes(currentSensitiveData);
+
+        if (isDataLeaking) {
+            try {
+                // URL-lərdən domen adlarını çıxarırıq
+                let initiatorDomain = new URL(initiatorUrl).hostname; 
+                let targetDomain = new URL(targetUrl).hostname;       
+
+                // Əgər kənar domenə (cross-origin) məlumat gedirsə
+                if (initiatorDomain !== targetDomain) {
+                    console.warn(`🚨 BLOKLANDI! ${initiatorDomain} məlumatı ${targetDomain} ünvanına sızdırırdı!`);
+                    
+                    // Zərərli fəaliyyət edən tabı (səhifəni) anında bağlayırıq
+                    chrome.tabs.remove(details.tabId);
+                }
+            } catch (e) {
+                console.error("URL yoxlanışında xəta:", e);
+            }
+        }
+    },
+    {urls: ["<all_urls>"]},
+    ["requestBody"]
+);
