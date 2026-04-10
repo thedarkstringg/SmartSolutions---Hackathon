@@ -1,0 +1,486 @@
+// CyberClowns Background Service Worker
+// Handles screenshot capture, backend communication, and UI updates
+
+const BACKEND_URL = "http://localhost:8000";
+
+// === STATE MANAGEMENT ===
+const analysisCache = new Map(); // tabId → result
+const pendingAnalysis = new Map(); // tabId → boolean
+
+// Badge colors
+const BADGE_COLORS = {
+  safe: "#00C853",
+  suspicious: "#FFD600",
+  phishing: "#D50000",
+  analyzing: "#888888",
+  error: "#888888",
+};
+
+// === SCREENSHOT CAPTURE ===
+async function captureScreenshot(tabId) {
+  return new Promise((resolve) => {
+    try {
+      chrome.tabs.captureVisibleTab(null, { format: "png", quality: 90 }, (screenshot) => {
+        if (chrome.runtime.lastError) {
+          console.error("Screenshot capture failed:", chrome.runtime.lastError);
+          resolve(null);
+        } else {
+          try {
+            // Strip the "data:image/png;base64," prefix
+            const base64 = screenshot.replace(/^data:image\/png;base64,/, "");
+            console.log(`Screenshot captured for tab ${tabId}: ${base64.length} bytes`);
+            resolve(base64);
+          } catch (e) {
+            console.error("Screenshot processing error:", e);
+            resolve(null);
+          }
+        }
+      });
+    } catch (e) {
+      console.error("Screenshot capture exception:", e);
+      resolve(null);
+    }
+  });
+}
+
+// === BACKEND COMMUNICATION ===
+async function analyzeWithBackend(payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    console.log("Sending analysis request to backend...");
+    const response = await fetch(`${BACKEND_URL}/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return {
+        error: `Backend error: ${response.status}`,
+        verdict: "unknown",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error.name === "AbortError") {
+      return {
+        error: "Analysis timed out (30s)",
+        verdict: "unknown",
+      };
+    }
+
+    return {
+      error: `Backend unreachable: ${error.message}`,
+      verdict: "unknown",
+    };
+  }
+}
+
+// === BADGE UPDATES ===
+function updateBadge(tabId, verdict) {
+  const text = {
+    safe: "✓",
+    suspicious: "!",
+    phishing: "✗",
+    unknown: "?",
+    pending: "...",
+  }[verdict] || "?";
+
+  const color = BADGE_COLORS[verdict] || BADGE_COLORS.error;
+
+  chrome.action.setBadgeText({ text, tabId });
+  chrome.action.setBadgeBackgroundColor({ color, tabId });
+}
+
+// === HEALTH CHECK ===
+async function checkBackendHealth() {
+  try {
+    const response = await fetch(`${BACKEND_URL}/health`, {
+      method: "GET",
+      timeout: 5000,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("CyberClowns backend healthy:", data);
+      return true;
+    }
+  } catch (error) {
+    console.warn(
+      "CyberClowns backend unreachable. Analysis disabled.",
+      error.message
+    );
+  }
+  return false;
+}
+
+// === MAIN ANALYSIS FLOW ===
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "ANALYZE_PAGE") {
+    (async () => {
+      const tabId = sender.tab.id;
+      const payload = request.payload;
+
+      console.log(`Starting analysis for tab ${tabId}: ${payload.url}`);
+
+      // Avoid duplicate analysis
+      if (pendingAnalysis.get(tabId)) {
+        console.log(`Analysis already pending for tab ${tabId}`);
+        return;
+      }
+
+      pendingAnalysis.set(tabId, true);
+      updateBadge(tabId, "analyzing");
+
+      try {
+        // Capture screenshot
+        console.log(`Capturing screenshot for tab ${tabId}...`);
+        const screenshot_base64 = await captureScreenshot(tabId);
+
+        // Build full payload
+        const fullPayload = {
+          url: payload.url,
+          screenshot_base64: screenshot_base64 || "",
+          dom_snapshot: payload.dom_snapshot || "",
+          behavior_signals: payload.behavior_signals || {},
+        };
+
+        console.log("Sending to backend...");
+        // Send to backend
+        const result = await analyzeWithBackend(fullPayload);
+
+        // Store in cache and storage
+        analysisCache.set(tabId, result);
+        await chrome.storage.local.set({
+          [tabId.toString()]: result,
+        });
+
+        // Send overlay message to the tab's content script
+        try {
+          chrome.tabs.sendMessage(tabId, {
+            type: "SHOW_OVERLAY",
+            payload: result,
+          });
+        } catch (e) {
+          // Content script may not be ready, ignore
+        }
+
+        // Update badge based on verdict
+        const verdict = result.verdict || "unknown";
+        updateBadge(tabId, verdict);
+
+        console.log(`Analysis complete for tab ${tabId}: verdict=${verdict}`);
+      } catch (error) {
+        console.error(`Analysis failed for tab ${tabId}:`, error);
+        const errorResult = {
+          error: error.message,
+          verdict: "unknown",
+        };
+        analysisCache.set(tabId, errorResult);
+        await chrome.storage.local.set({
+          [tabId.toString()]: errorResult,
+        });
+        updateBadge(tabId, "error");
+      } finally {
+        pendingAnalysis.set(tabId, false);
+      }
+    })();
+  }
+
+  if (request.type === "GET_RESULT") {
+    const tabId = request.payload.tabId;
+    const result = analysisCache.get(tabId);
+
+    if (result) {
+      sendResponse(result);
+    } else {
+      sendResponse({
+        verdict: "pending",
+        message: "Page analysis in progress...",
+      });
+    }
+  }
+
+  if (request.type === "RESCAN") {
+    const tabId = request.payload.tabId;
+    const url = request.payload.url;
+
+    (async () => {
+      console.log(`Re-scanning tab ${tabId}...`);
+      // Clear cache
+      analysisCache.delete(tabId);
+      await chrome.storage.local.remove(tabId.toString());
+
+      // Re-inject content script
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ["content.js"],
+        });
+      } catch (error) {
+        console.error("Failed to re-inject content script:", error);
+      }
+    })();
+  }
+});
+
+// === TAB EVENTS: Clear cache on navigation ===
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (
+    changeInfo.status === "complete" &&
+    tab.url &&
+    (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+  ) {
+    console.log(`Tab ${tabId} navigation complete: ${tab.url}`);
+    // Clear previous result for fresh analysis
+    analysisCache.delete(tabId);
+    chrome.storage.local.remove(tabId.toString());
+    updateBadge(tabId, "pending");
+  }
+});
+
+// === TAB EVENTS: Clean up on removal ===
+chrome.tabs.onRemoved.addListener((tabId) => {
+  console.log(`Cleaning up tab ${tabId}`);
+  analysisCache.delete(tabId);
+  pendingAnalysis.delete(tabId);
+  chrome.storage.local.remove(tabId.toString());
+});
+
+// === EXTENSION STARTUP ===
+chrome.runtime.onInstalled.addListener(() => {
+  checkBackendHealth();
+  console.log("CyberClowns extension installed");
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  checkBackendHealth();
+  console.log("CyberClowns extension started");
+});
+
+
+// === BACKEND COMMUNICATION ===
+async function analyzeWithBackend(payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return {
+        error: `Backend error: ${response.status}`,
+        verdict: "unknown",
+      };
+    }
+
+    return await response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error.name === "AbortError") {
+      return {
+        error: "Analysis timed out (30s)",
+        verdict: "unknown",
+      };
+    }
+
+    return {
+      error: `Backend unreachable: ${error.message}`,
+      verdict: "unknown",
+    };
+  }
+}
+
+// === BADGE UPDATES ===
+function updateBadge(tabId, verdict) {
+  const text = {
+    safe: "✓",
+    suspicious: "!",
+    phishing: "✗",
+    unknown: "?",
+    pending: "...",
+  }[verdict] || "?";
+
+  const color = BADGE_COLORS[verdict] || BADGE_COLORS.error;
+
+  chrome.action.setBadgeText({ text, tabId });
+  chrome.action.setBadgeBackgroundColor({ color, tabId });
+}
+
+// === HEALTH CHECK ===
+async function checkBackendHealth() {
+  try {
+    const response = await fetch(`${BACKEND_URL}/health`, {
+      method: "GET",
+      timeout: 5000,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("CyberClowns backend healthy:", data);
+      return true;
+    }
+  } catch (error) {
+    console.warn(
+      "CyberClowns backend unreachable. Analysis disabled.",
+      error.message
+    );
+  }
+  return false;
+}
+
+// === MAIN ANALYSIS FLOW ===
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "ANALYZE_PAGE") {
+    (async () => {
+      const tabId = sender.tab.id;
+      const payload = request.payload;
+
+      // Avoid duplicate analysis
+      if (pendingAnalysis.get(tabId)) {
+        console.log(`Analysis already pending for tab ${tabId}`);
+        return;
+      }
+
+      pendingAnalysis.set(tabId, true);
+      updateBadge(tabId, "analyzing");
+
+      try {
+        // Capture screenshot
+        const screenshot_base64 = await captureScreenshot(tabId);
+
+        // Build full payload
+        const fullPayload = {
+          url: payload.url,
+          screenshot_base64: screenshot_base64 || "",
+          dom_snapshot: payload.dom_snapshot || "",
+          behavior_signals: payload.behavior_signals || {},
+        };
+
+        // Send to backend
+        const result = await analyzeWithBackend(fullPayload);
+
+        // Store in cache and storage
+        analysisCache.set(tabId, result);
+        await chrome.storage.local.set({
+          [tabId.toString()]: result,
+        });
+
+        // Send overlay message to the tab's content script
+        try {
+          chrome.tabs.sendMessage(tabId, {
+            type: "SHOW_OVERLAY",
+            payload: result,
+          });
+        } catch (e) {
+          // Content script may not be ready, ignore
+        }
+
+        // Update badge based on verdict
+        const verdict = result.verdict || "unknown";
+        updateBadge(tabId, verdict);
+
+        console.log(`Analysis complete for tab ${tabId}:`, verdict);
+      } catch (error) {
+        console.error(`Analysis failed for tab ${tabId}:`, error);
+        const errorResult = {
+          error: error.message,
+          verdict: "unknown",
+        };
+        analysisCache.set(tabId, errorResult);
+        await chrome.storage.local.set({
+          [tabId.toString()]: errorResult,
+        });
+        updateBadge(tabId, "error");
+      } finally {
+        pendingAnalysis.set(tabId, false);
+      }
+    })();
+  }
+
+  if (request.type === "GET_RESULT") {
+    const tabId = request.payload.tabId;
+    const result = analysisCache.get(tabId);
+
+    if (result) {
+      sendResponse(result);
+    } else {
+      sendResponse({
+        verdict: "pending",
+        message: "Page analysis in progress...",
+      });
+    }
+  }
+
+  if (request.type === "RESCAN") {
+    const tabId = request.payload.tabId;
+    const url = request.payload.url;
+
+    (async () => {
+      // Clear cache
+      analysisCache.delete(tabId);
+      await chrome.storage.local.remove(tabId.toString());
+
+      // Re-inject content script
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ["content.js"],
+        });
+      } catch (error) {
+        console.error("Failed to re-inject content script:", error);
+      }
+    })();
+  }
+});
+
+// === TAB EVENTS: Clear cache on navigation ===
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (
+    changeInfo.status === "complete" &&
+    tab.url &&
+    (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+  ) {
+    // Clear previous result for fresh analysis
+    analysisCache.delete(tabId);
+    chrome.storage.local.remove(tabId.toString());
+    updateBadge(tabId, "pending");
+  }
+});
+
+// === TAB EVENTS: Clean up on removal ===
+chrome.tabs.onRemoved.addListener((tabId) => {
+  analysisCache.delete(tabId);
+  pendingAnalysis.delete(tabId);
+  chrome.storage.local.remove(tabId.toString());
+});
+
+// === EXTENSION STARTUP ===
+chrome.runtime.onInstalled.addListener(() => {
+  checkBackendHealth();
+  console.log("CyberClowns extension loaded");
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  checkBackendHealth();
+});

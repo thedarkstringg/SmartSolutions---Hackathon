@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberClowns Phishing Detector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <h1>🤡 CyberClowns</h1>
+        <p class="subtitle">Phishing Detector</p>
+      </div>
+      <div id="backend-status" class="backend-status" title="Backend Connection"></div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading-state" class="loading-state visible">
+      <div class="spinner"></div>
+      <p>Analyzing page...</p>
+      <p class="loading-hint">This may take a few seconds</p>
+    </div>
+
+    <!-- Analysis results -->
+    <div id="results-state" class="results-state hidden">
+      <!-- URL display -->
+      <div class="url-display">
+        <p class="label">Current Site</p>
+        <p id="siteUrl" class="url-text">Loading...</p>
+      </div>
+
+      <!-- Verdict badge -->
+      <div id="verdictBadge" class="verdict-badge">
+        <span id="verdictText" class="verdict-text">Analyzing...</span>
+      </div>
+
+      <!-- Confidence score -->
+      <div class="confidence-section">
+        <p class="label">Confidence Score</p>
+        <div class="confidence-bar-container">
+          <div id="confidenceBar" class="confidence-bar"></div>
+        </div>
+        <p id="confidenceValue" class="confidence-value">0%</p>
+      </div>
+
+      <!-- Individual scores -->
+      <div class="scores-grid">
+        <div class="score-item">
+          <p class="score-label">URL Analysis</p>
+          <div class="mini-bar-container">
+            <div id="urlScoreBar" class="mini-bar"></div>
+          </div>
+          <p id="urlScoreValue" class="score-value">0.00</p>
+        </div>
+
+        <div class="score-item">
+          <p class="score-label">Visual Analysis</p>
+          <div class="mini-bar-container">
+            <div id="visualScoreBar" class="mini-bar"></div>
+          </div>
+          <p id="visualScoreValue" class="score-value">0.00</p>
+        </div>
+
+        <div class="score-item">
+          <p class="score-label">Behavior Analysis</p>
+          <div class="mini-bar-container">
+            <div id="behaviorScoreBar" class="mini-bar"></div>
+          </div>
+          <p id="behaviorScoreValue" class="score-value">0.00</p>
+        </div>
+      </div>
+
+      <!-- Warnings -->
+      <div id="warnings-section" class="warnings-section hidden">
+        <p class="label">⚠️ Warnings</p>
+        <ul id="warnings-list" class="warnings-list"></ul>
+      </div>
+
+      <!-- Timestamp -->
+      <div class="timestamp-section">
+        <p id="timestamp" class="timestamp">Last scanned: just now</p>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="button-container">
+        <button id="rescan-button" class="rescan-button">🔍 Re-scan</button>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-state" class="error-state hidden">
+      <p class="error-title">⚠️ Error</p>
+      <p id="error-message" class="error-message">Unknown error occurred</p>
+      <p class="error-hint">Make sure the backend is running on http://localhost:8000</p>
+      <button id="retry-button" class="retry-button">🔄 Retry</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
