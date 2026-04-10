@@ -1,5 +1,6 @@
-// CyberClowns Background Service Worker
-// Handles screenshot capture, backend communication, OpenCTI threat intelligence, and UI updates
+// Tilloff - Advanced Phishing Analyzer
+// Background Service Worker
+// Handles screenshot capture, backend communication, threat intelligence, and UI updates
 // @ts-check
 
 // Backend configuration
@@ -287,6 +288,7 @@ async function checkBackendHealth() {
 }
 
 // === IMPROVED DETECTION: onCommitted (fires earlier, blocks faster) ===
+// Now triggers both VirusTotal check AND backend ML analysis
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   // frameId 0 = Main tab, avoid sub-resources
   if (details.frameId === 0 && details.url.startsWith('http')) {
@@ -309,17 +311,20 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       return;
     }
 
-    console.log(`\n[🔍 VIRUSTOTAL CHECK] Analyzing: ${url}`);
+    console.log(`\n[🔍 ANALYSIS START] Analyzing: ${url}`);
     updateBadge(details.tabId, "analyzing");
 
     try {
+      // === PARALLEL THREAT CHECKS ===
+      // 1. Fast VirusTotal check for immediate blocking
+      console.log(`[VirusTotal] Fast check...`);
       const vtResults = await checkUrlInVirusTotal(url);
 
       if (vtResults.checked) {
         console.log(`[VirusTotal] Result: ${vtResults.malicious ? `🚨 MALICIOUS (${vtResults.engines} engines)` : '✅ SAFE'}`);
       }
 
-      // Decision: Block if VirusTotal flags it
+      // Decision: Block immediately if VirusTotal flags it
       if (vtResults.malicious) {
         console.log(`\n🛑 BLOCKING URL - VirusTotal detected threat (${vtResults.engines} engines)`);
         updateBadge(details.tabId, "phishing");
@@ -338,13 +343,40 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         // Redirect to blocked page
         const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?url=${encodeURIComponent(url)}`;
         chrome.tabs.update(details.tabId, { url: blockPageUrl });
-      } else {
-        console.log(`\n✅ PASSED VirusTotal check - Allowing URL`);
-        updateBadge(details.tabId, "safe");
+        return;
       }
 
+      // 2. OpenCTI threat intelligence check (runs in parallel)
+      console.log(`[OpenCTI] Threat intelligence check...`);
+      const ctiThreat = await checkUrlInOpenCTI(url);
+      if (ctiThreat) {
+        console.log(`[OpenCTI] 🚨 Threat detected in CTI`);
+        updateBadge(details.tabId, "suspicious");
+      }
+
+      // 3. Trigger backend ML analysis for deeper analysis
+      console.log(`[Backend] Starting ML analysis...`);
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: details.tabId },
+          files: ["content.js"],
+        });
+
+        // Send message to content script to trigger analysis
+        chrome.tabs.sendMessage(details.tabId, {
+          type: "ANALYZE_PAGE",
+          url: url,
+        }).catch(err => console.log("[Backend] Content script not ready yet, will auto-trigger on page ready"));
+      } catch (error) {
+        console.log("[Backend] Script injection skipped:", error.message);
+      }
+
+      // Default to safe if nothing flagged it
+      console.log(`\n✅ PASSED all checks - Allowing URL`);
+      updateBadge(details.tabId, "safe");
+
     } catch (error) {
-      console.error('[VirusTotal Check] Error:', error);
+      console.error('[Analysis] Error:', error);
       updateBadge(details.tabId, "error");
     }
   }
@@ -357,26 +389,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let result = analysisCache.get(tabId);
 
     if (!result) {
-      // Extract domain from sender tab URL
-      const tabUrl = sender.tab?.url || "";
-      let domain = "Unknown";
-      try {
-        const url = new URL(tabUrl);
-        domain = url.hostname;
-      } catch (e) {
-        // Invalid URL
-      }
+      // Query the tab to get its actual URL
+      chrome.tabs.get(tabId, (tab) => {
+        let domain = "Unknown";
+        if (tab && tab.url) {
+          try {
+            const url = new URL(tab.url);
+            domain = url.hostname;
+          } catch (e) {
+            // Invalid URL
+          }
+        }
 
-      result = {
-        verdict: "safe",
-        confidence_score: 1.0,
-        url_score: 0,
-        visual_score: 0,
-        behavior_score: 0,
-        warnings: [],
-        scan_timestamp: new Date().toISOString(),
-        site_info: { domain },
-      };
+        result = {
+          verdict: "safe",
+          confidence_score: 1.0,
+          url_score: 0,
+          visual_score: 0,
+          behavior_score: 0,
+          warnings: [],
+          scan_timestamp: new Date().toISOString(),
+          site_info: { domain },
+        };
+        sendResponse(result);
+      });
+      return;
     }
     sendResponse(result);
   }
@@ -390,16 +427,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // === MAIN ANALYSIS FLOW ===
-// DISABLED: Backend ML analysis deactivated
-// Extension now uses VirusTotal only for threat detection
-/*
+// Backend ML analysis enabled for deep phishing detection
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "ANALYZE_PAGE") {
     (async () => {
       const tabId = sender.tab.id;
       const payload = request.payload;
 
-      console.log(`Starting analysis for tab ${tabId}: ${payload.url}`);
+      console.log(`Starting ML analysis for tab ${tabId}: ${payload.url}`);
 
       // Avoid duplicate analysis
       if (pendingAnalysis.get(tabId)) {
@@ -423,7 +458,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           behavior_signals: payload.behavior_signals || {},
         };
 
-        console.log("Sending to backend...");
+        console.log("Sending to backend ML...");
         // Send to backend
         const result = await analyzeWithBackend(fullPayload);
 
@@ -460,9 +495,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           );
         }
 
-        console.log(`Analysis complete for tab ${tabId}: verdict=${verdict}`);
+        console.log(`[Backend ML] Analysis complete for tab ${tabId}: verdict=${verdict}`);
       } catch (error) {
-        console.error(`Analysis failed for tab ${tabId}:`, error);
+        console.error(`[Backend ML] Analysis failed for tab ${tabId}:`, error);
         const errorResult = {
           error: error.message,
           verdict: "unknown",
@@ -514,11 +549,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })();
   }
 });
-*/
 
 // === TAB EVENTS: Clear cache on navigation ===
-// Disabled: Not needed since ML analysis is disabled
-/*
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (
     changeInfo.status === "complete" &&
@@ -532,7 +564,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     updateBadge(tabId, "pending");
   }
 });
-*/
 
 // === TAB EVENTS: Clean up on removal ===
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -544,9 +575,9 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // === EXTENSION STARTUP ===
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("CyberClowns extension installed - VirusTotal protection active");
+  console.log("Tilloff - Advanced Phishing Analyzer installed");
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  console.log("CyberClowns extension started");
+  console.log("Tilloff - Advanced Phishing Analyzer started");
 });

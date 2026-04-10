@@ -3,105 +3,265 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CyberClowns Phishing Detector</title>
+  <title>Tilloff - Advanced Phishing Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <div class="header-content">
-        <h1>🤡 CyberClowns</h1>
-        <p class="subtitle">Phishing Detector</p>
+    <!-- Auth Panel -->
+    <div id="auth-panel" class="auth-panel">
+      <!-- Login Form -->
+      <div id="login-form" class="auth-form">
+        <div class="auth-header">
+          <div class="auth-logo">T</div>
+          <h1>Tilloff</h1>
+          <p class="auth-subtitle">Advanced Phishing Analyzer</p>
+        </div>
+
+        <form id="login-form-element">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="your@email.com" required />
+          </div>
+
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="Enter your password" required />
+          </div>
+
+          <button type="submit" class="btn btn-primary auth-btn">Sign In</button>
+
+          <div class="auth-divider"></div>
+
+          <p class="auth-toggle">Don't have an account? <button type="button" id="toggle-signup" class="link-btn">Sign Up</button></p>
+        </form>
+
+        <div id="login-error" class="auth-error hidden"></div>
       </div>
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <button id="analytics-button" class="analytics-button" title="Open Dashboard">📊</button>
-        <div id="backend-status" class="backend-status" title="Backend Connection"></div>
+
+      <!-- Sign Up Form -->
+      <div id="signup-form" class="auth-form hidden">
+        <div class="auth-header">
+          <div class="auth-logo">T</div>
+          <h1>Tilloff</h1>
+          <p class="auth-subtitle">Create Account</p>
+        </div>
+
+        <form id="signup-form-element">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="signup-name" placeholder="Your name" required />
+          </div>
+
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="signup-email" placeholder="your@email.com" required />
+          </div>
+
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="signup-password" placeholder="At least 8 characters" minlength="8" required />
+          </div>
+
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <input type="password" id="signup-password-confirm" placeholder="Confirm password" required />
+          </div>
+
+          <button type="submit" class="btn btn-primary auth-btn">Create Account</button>
+
+          <div class="auth-divider"></div>
+
+          <p class="auth-toggle">Already have an account? <button type="button" id="toggle-login" class="link-btn">Sign In</button></p>
+        </form>
+
+        <div id="signup-error" class="auth-error hidden"></div>
       </div>
     </div>
 
-    <!-- Loading state -->
-    <div id="loading-state" class="loading-state visible">
-      <div class="spinner"></div>
-      <p>Analyzing page...</p>
-      <p class="loading-hint">This may take a few seconds</p>
-    </div>
-
-    <!-- Analysis results -->
-    <div id="results-state" class="results-state hidden">
-      <!-- URL display -->
-      <div class="url-display">
-        <p class="label">Current Site</p>
-        <p id="siteUrl" class="url-text">Loading...</p>
-      </div>
-
-      <!-- Verdict badge -->
-      <div id="verdictBadge" class="verdict-badge">
-        <span id="verdictText" class="verdict-text">Analyzing...</span>
-      </div>
-
-      <!-- Confidence score -->
-      <div class="confidence-section">
-        <p class="label">Confidence Score</p>
-        <div class="confidence-bar-container">
-          <div id="confidenceBar" class="confidence-bar"></div>
+    <!-- Main Content (shown after auth) -->
+    <div id="main-content" class="main-content hidden">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <img id="logo-icon" src="" alt="Tilloff" class="logo-icon" onerror="this.style.display='none'" />
+          <h1>Tilloff</h1>
         </div>
-        <p id="confidenceValue" class="confidence-value">0%</p>
+        <div class="header-buttons">
+          <button id="dashboard-header-btn" class="header-btn" title="Dashboard">◧</button>
+          <button id="menu-button" class="menu-button">≡</button>
+        </div>
       </div>
 
-      <!-- Individual scores -->
-      <div class="scores-grid">
-        <div class="score-item">
-          <p class="score-label">URL Analysis</p>
-          <div class="mini-bar-container">
-            <div id="urlScoreBar" class="mini-bar"></div>
+      <!-- Loading state -->
+      <div id="loading-state" class="state loading-state visible">
+        <div class="spinner"></div>
+        <p class="state-title">Analyzing page...</p>
+        <p class="state-subtitle">This may take a few seconds</p>
+      </div>
+
+      <!-- Analysis results -->
+      <div id="results-state" class="state results-state hidden">
+        <!-- URL display -->
+        <div class="info-card">
+          <p class="card-label">Current Site</p>
+          <p id="siteUrl" class="site-url">Loading...</p>
+        </div>
+
+        <!-- Verdict display -->
+        <div id="verdictContainer" class="verdict-container">
+          <div id="verdictBadge" class="verdict-badge safe">
+            <span id="verdictText">SAFE</span>
           </div>
-          <p id="urlScoreValue" class="score-value">0.00</p>
         </div>
 
-        <div class="score-item">
-          <p class="score-label">Visual Analysis</p>
-          <div class="mini-bar-container">
-            <div id="visualScoreBar" class="mini-bar"></div>
+        <!-- Confidence score -->
+        <div class="info-card">
+          <div class="card-header">
+            <p class="card-label">Confidence Level</p>
+            <p id="confidenceValue" class="confidence-value">0%</p>
           </div>
-          <p id="visualScoreValue" class="score-value">0.00</p>
-        </div>
-
-        <div class="score-item">
-          <p class="score-label">Behavior Analysis</p>
-          <div class="mini-bar-container">
-            <div id="behaviorScoreBar" class="mini-bar"></div>
+          <div class="progress-bar">
+            <div id="confidenceBar" class="progress-fill safe-fill"></div>
           </div>
-          <p id="behaviorScoreValue" class="score-value">0.00</p>
         </div>
-      </div>
 
-      <!-- Warnings -->
-      <div id="warnings-section" class="warnings-section hidden">
-        <p class="label">⚠️ Warnings</p>
-        <ul id="warnings-list" class="warnings-list"></ul>
-      </div>
+        <!-- Analysis scores -->
+        <div class="scores-container">
+          <div class="score-box">
+            <p class="score-label">URL</p>
+            <p id="urlScoreValue" class="score-value">0.00</p>
+          </div>
+          <div class="score-box">
+            <p class="score-label">Visual</p>
+            <p id="visualScoreValue" class="score-value">0.00</p>
+          </div>
+          <div class="score-box">
+            <p class="score-label">Behavior</p>
+            <p id="behaviorScoreValue" class="score-value">0.00</p>
+          </div>
+        </div>
 
-      <!-- Timestamp -->
-      <div class="timestamp-section">
+        <!-- Warnings -->
+        <div id="warnings-section" class="info-card warning-card hidden">
+          <p class="card-label warning-label">Warnings</p>
+          <ul id="warnings-list" class="warnings-list"></ul>
+        </div>
+
+        <!-- Timestamp -->
         <p id="timestamp" class="timestamp">Last scanned: just now</p>
+
+        <!-- Action buttons -->
+        <div class="button-group">
+          <button id="rescan-button" class="btn btn-primary">Rescan</button>
+          <button id="logout-button" class="btn btn-secondary">Logout</button>
+        </div>
       </div>
 
-      <!-- Action buttons -->
-      <div class="button-container">
-        <button id="rescan-button" class="rescan-button">🔍 Re-scan</button>
+      <!-- Error state -->
+      <div id="error-state" class="state error-state hidden">
+        <div class="info-card error-card">
+          <p class="error-title">Connection Error</p>
+          <p id="error-message" class="error-message">Unable to connect</p>
+          <p class="error-hint">Make sure backend is running on localhost:8000</p>
+          <button id="retry-button" class="btn btn-primary">Retry</button>
+        </div>
       </div>
-    </div>
 
-    <!-- Error state -->
-    <div id="error-state" class="error-state hidden">
-      <p class="error-title">⚠️ Error</p>
-      <p id="error-message" class="error-message">Unknown error occurred</p>
-      <p class="error-hint">Make sure the backend is running on http://localhost:8000</p>
-      <button id="retry-button" class="retry-button">🔄 Retry</button>
+      <!-- Menu/Settings panel -->
+      <div id="menu-panel" class="menu-panel hidden">
+        <div class="menu-header">
+          <p>Options</p>
+          <button id="close-menu" class="close-button">×</button>
+        </div>
+        <div class="menu-content">
+          <button id="settings-btn" class="menu-item">Settings</button>
+          <button id="history-btn" class="menu-item">History</button>
+          <button id="help-btn" class="menu-item">Help</button>
+          <button id="about-btn" class="menu-item">About</button>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div id="settings-panel" class="panel hidden">
+        <div class="panel-header">
+          <button class="back-button">← Back</button>
+          <h2>Settings</h2>
+        </div>
+        <div class="panel-content">
+          <div class="setting-item">
+            <label>Enable notifications</label>
+            <input type="checkbox" id="notify-toggle" checked>
+          </div>
+          <div class="setting-item">
+            <label>Backend URL</label>
+            <input type="text" id="backend-url" value="http://localhost:8000" placeholder="Backend URL">
+          </div>
+          <button class="btn btn-primary" style="margin-top: 16px;">Save Settings</button>
+        </div>
+      </div>
+
+      <!-- History Panel -->
+      <div id="history-panel" class="panel hidden">
+        <div class="panel-header">
+          <button class="back-button">← Back</button>
+          <h2>Scan History</h2>
+        </div>
+        <div class="panel-content">
+          <p style="color: #999999; text-align: center; padding: 20px;">No scan history yet</p>
+        </div>
+      </div>
+
+      <!-- Help Panel -->
+      <div id="help-panel" class="panel hidden">
+        <div class="panel-header">
+          <button class="back-button">← Back</button>
+          <h2>Help</h2>
+        </div>
+        <div class="panel-content">
+          <h3 style="color: #ffffff; margin-bottom: 8px; font-size: 13px;">How to use Tilloff</h3>
+          <p style="color: #999999; font-size: 11px; line-height: 1.6; margin-bottom: 12px;">Tilloff automatically analyzes every website you visit for phishing and security threats. Simply browse normally and the extension will:</p>
+          <ul style="color: #999999; font-size: 11px; line-height: 1.6; margin-left: 16px; margin-bottom: 12px;">
+            <li>Check URL patterns and domain reputation</li>
+            <li>Analyze visual elements for cloning attempts</li>
+            <li>Monitor behavioral signals for suspicious activity</li>
+            <li>Display security verdict: SAFE, SUSPICIOUS, or PHISHING</li>
+          </ul>
+          <p style="color: #999999; font-size: 11px;"><strong>Need help?</strong> Contact support at help@tilloff.security</p>
+        </div>
+      </div>
+
+      <!-- About Panel -->
+      <div id="about-panel" class="panel hidden">
+        <div class="panel-header">
+          <button class="back-button">← Back</button>
+          <h2>About Tilloff</h2>
+        </div>
+        <div class="panel-content">
+          <div style="text-align: center; margin-bottom: 16px;">
+            <div style="font-size: 32px; margin-bottom: 8px;">T</div>
+            <h3 style="color: #ffffff; margin-bottom: 4px;">Tilloff - Advanced Phishing Analyzer</h3>
+            <p style="color: #999999; font-size: 11px;">Version 1.0</p>
+          </div>
+          <p style="color: #999999; font-size: 11px; line-height: 1.6; margin-bottom: 12px;">Tilloff is an advanced phishing detection extension that protects users from sophisticated phishing attacks and malicious websites using cutting-edge machine learning and threat intelligence.</p>
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+            <p style="color: #999999; font-size: 10px;"><strong>Features:</strong></p>
+            <ul style="color: #999999; font-size: 10px; margin-left: 12px;">
+              <li>Advanced phishing detection</li>
+              <li>ML-powered security analysis</li>
+              <li>Real-time threat blocking</li>
+              <li>Privacy-first architecture</li>
+            </ul>
+          </div>
+          <p style="color: #666666; font-size: 10px; text-align: center;">© 2026 Tilloff. Advanced Security Solutions.</p>
+        </div>
+      </div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="auth.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

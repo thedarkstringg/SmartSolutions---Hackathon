@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "CyberClowns Phishing Detector",
+  "name": "Tilloff - Advanced Phishing Analyzer",
   "version": "1.0",
-  "description": "Detect phishing attacks and suspicious websites in real-time",
+  "description": "Advanced phishing detection and security analysis powered by machine learning",
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
   "permissions": [
     "activeTab",
     "scripting",
@@ -13,7 +18,8 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://20.244.15.36:8080/*"
+    "http://20.244.15.36:8080/*",
+    "https://tszkdmqjuoxfxbnsdfmw.supabase.co/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -27,13 +33,18 @@
   ],
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "CyberClowns Phishing Detector"
+    "default_title": "Tilloff - Advanced Phishing Analyzer"
   },
   "web_accessible_resources": [
     {
-      "resources": ["demo/demo_mode.js", "demo/demo_dashboard.html", "test_page/phishing_demo.html", "onboarding.html", "blocked.html"],
+      "resources": ["icon.png", "demo/demo_mode.js", "demo/demo_dashboard.html", "test_page/phishing_demo.html", "onboarding.html", "blocked.html"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://tszkdmqjuoxfxbnsdfmw.supabase.co https://cdn.jsdelivr.net"
+  }
 }
+
+
 

@@ -27,8 +27,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="CyberClowns Phishing Detector",
-    description="Backend API for phishing detection",
+    title="Tilloff - Advanced Phishing Analyzer",
+    description="Backend API for advanced phishing detection",
     version="1.0"
 )
 
@@ -242,6 +242,55 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
     start_time = time.time()
     logger.info(f"Analyzing URL: {request.url}")
 
+    # Whitelist of known safe domains - skip detailed analysis
+    WHITELIST = [
+        'localhost', '127.0.0.1', '192.168', '10.0',
+        'chrome://', 'about:',
+        'google.com', 'github.com', 'microsoft.com', 'apple.com',
+        'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
+        'linkedin.com', 'reddit.com', 'stackoverflow.com', 'amazon.com',
+        'cloudflare.com', 'aws.amazon.com'
+    ]
+
+    # Check if URL is whitelisted
+    is_whitelisted = any(domain in request.url for domain in WHITELIST)
+
+    if is_whitelisted:
+        logger.info(f"[✅ WHITELISTED] {request.url}")
+        parsed_url = urlparse(request.url)
+        site_info = {
+            "domain": parsed_url.netloc or "unknown",
+            "is_https": parsed_url.scheme == "https",
+            "url_length": len(request.url),
+        }
+
+        response = AnalysisResponse(
+            url_score=0.0,
+            visual_score=0.0,
+            behavior_score=0.0,
+            confidence_score=1.0,
+            verdict="safe",
+            warnings=[],  # No warnings for whitelisted sites
+            url_indicators=[],
+            features={},
+            scan_timestamp=datetime.utcnow().isoformat() + "Z",
+            site_info=site_info,
+        )
+
+        # Log metrics
+        MetricsCollector.log_scan(
+            url=request.url,
+            verdict="safe",
+            confidence_score=1.0,
+            url_score=0.0,
+            visual_score=0.0,
+            behavior_score=0.0,
+            response_time_ms=(time.time() - start_time) * 1000,
+            warnings=[],
+        )
+
+        return response
+
     try:
         # Handle missing screenshot gracefully
         screenshot_base64 = request.screenshot_base64 or ""
@@ -377,6 +426,7 @@ async def health_check():
     """Health check endpoint for extension integration."""
     return {
         "status": "ok",
+        "service": "Tilloff - Advanced Phishing Analyzer",
         "version": "1.0.0",
         "timestamp": datetime.utcnow().isoformat(),
     }
@@ -432,7 +482,7 @@ async def get_metrics():
 @app.on_event("startup")
 async def startup_event():
     """Test Splunk connection on startup."""
-    logger.info("🚀 CyberClowns Backend Starting...")
+    logger.info("🚀 Tilloff - Advanced Phishing Analyzer Starting...")
     await test_splunk_connection()
 
 

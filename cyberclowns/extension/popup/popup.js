@@ -1,4 +1,4 @@
-// CyberClowns Popup UI Script
+// Tilloff Security Detector Popup
 
 // === STATE ===
 let currentTabId = null;
@@ -9,17 +9,75 @@ let pollsMissed = 0;
 const loadingState = document.getElementById("loading-state");
 const resultsState = document.getElementById("results-state");
 const errorState = document.getElementById("error-state");
-const backendStatus = document.getElementById("backend-status");
 const rescanButton = document.getElementById("rescan-button");
 const retryButton = document.getElementById("retry-button");
+const dashboardHeaderBtn = document.getElementById("dashboard-header-btn");
+const menuButton = document.getElementById("menu-button");
+const menuPanel = document.getElementById("menu-panel");
+const closeMenuButton = document.getElementById("close-menu");
+
+// Menu buttons
+const settingsBtn = document.getElementById("settings-btn");
+const historyBtn = document.getElementById("history-btn");
+const helpBtn = document.getElementById("help-btn");
+const aboutBtn = document.getElementById("about-btn");
+
+// Panels
+const settingsPanel = document.getElementById("settings-panel");
+const historyPanel = document.getElementById("history-panel");
+const helpPanel = document.getElementById("help-panel");
+const aboutPanel = document.getElementById("about-panel");
+
+// Back buttons
+const backButtons = document.querySelectorAll(".back-button");
 
 // === INITIALIZATION ===
-document.addEventListener("DOMContentLoaded", async () => {
-  await initializePopup();
+// NOTE: This is called from auth.js ONLY after authentication is verified
+// Do NOT add DOMContentLoaded here - it will be triggered by auth.js
+
+// Setup all main features - called only if authenticated
+function setupMainPopupFeatures() {
+  loadIcon();
+
+  // Button event listeners
   rescanButton.addEventListener("click", handleRescan);
   retryButton.addEventListener("click", handleRetry);
-  document.getElementById("analytics-button").addEventListener("click", openAnalyticsDashboard);
-});
+  dashboardHeaderBtn.addEventListener("click", openAnalyticsDashboard);
+  menuButton.addEventListener("click", toggleMenu);
+  closeMenuButton.addEventListener("click", toggleMenu);
+
+  // Menu item listeners
+  settingsBtn.addEventListener("click", () => showPanel(settingsPanel));
+  historyBtn.addEventListener("click", () => showPanel(historyPanel));
+  helpBtn.addEventListener("click", () => showPanel(helpPanel));
+  aboutBtn.addEventListener("click", () => showPanel(aboutPanel));
+
+  // Back button listeners
+  backButtons.forEach(btn => {
+    btn.addEventListener("click", closePanel);
+  });
+
+  // Initialize the popup
+  initializePopup();
+}
+
+// === LOAD ICON ===
+function loadIcon() {
+  const logoIcon = document.getElementById("logo-icon");
+  if (!logoIcon) return;
+
+  try {
+    const iconUrl = chrome.runtime.getURL("icon.png");
+    if (iconUrl) {
+      logoIcon.src = iconUrl;
+      logoIcon.style.display = "block";
+    }
+  } catch (error) {
+    // Icon not available, hide it
+    logoIcon.style.display = "none";
+    console.log("Icon not available, using default");
+  }
+}
 
 async function initializePopup() {
   // Get current tab
@@ -44,38 +102,8 @@ async function initializePopup() {
     return;
   }
 
-  // Check backend health
-  checkBackendStatus();
-
   // Load and display result
   await loadResult();
-}
-
-// === BACKEND STATUS CHECK ===
-async function checkBackendStatus() {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-  try {
-    const response = await fetch("http://localhost:8000/health", {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      backendStatus.className = "backend-status connected";
-      backendStatus.title = "Backend connected";
-    } else {
-      backendStatus.className = "backend-status disconnected";
-      backendStatus.title = "Backend error";
-    }
-  } catch (error) {
-    clearTimeout(timeoutId);
-    backendStatus.className = "backend-status disconnected";
-    backendStatus.title = "Backend disconnected";
-  }
 }
 
 // === RESULT LOADING WITH POLLING ===
@@ -123,21 +151,30 @@ async function loadResult() {
 // === UI STATE FUNCTIONS ===
 function showLoading() {
   loadingState.classList.add("visible");
+  loadingState.classList.remove("hidden");
   resultsState.classList.add("hidden");
+  resultsState.classList.remove("visible");
   errorState.classList.add("hidden");
+  errorState.classList.remove("visible");
 }
 
 function showError(message) {
   loadingState.classList.add("hidden");
+  loadingState.classList.remove("visible");
   resultsState.classList.add("hidden");
+  resultsState.classList.remove("visible");
   errorState.classList.remove("hidden");
+  errorState.classList.add("visible");
   document.getElementById("error-message").textContent = message;
 }
 
 function displayResult(result) {
   loadingState.classList.add("hidden");
+  loadingState.classList.remove("visible");
   errorState.classList.add("hidden");
+  errorState.classList.remove("visible");
   resultsState.classList.remove("hidden");
+  resultsState.classList.add("visible");
 
   const {
     url_score,
@@ -161,16 +198,16 @@ function displayResult(result) {
   verdictBadge.className = "verdict-badge";
   if (verdict === "safe") {
     verdictBadge.classList.add("safe");
-    verdictText.textContent = "✓ SAFE";
+    verdictText.textContent = "SAFE";
   } else if (verdict === "suspicious") {
     verdictBadge.classList.add("suspicious");
-    verdictText.textContent = "⚠ SUSPICIOUS";
+    verdictText.textContent = "SUSPICIOUS";
   } else if (verdict === "phishing") {
     verdictBadge.classList.add("phishing");
-    verdictText.textContent = "✗ PHISHING";
+    verdictText.textContent = "PHISHING";
   } else {
-    verdictBadge.classList.add("unknown");
-    verdictText.textContent = "? UNKNOWN";
+    verdictBadge.classList.add("suspicious");
+    verdictText.textContent = "UNKNOWN";
   }
 
   // Display confidence score
@@ -179,20 +216,9 @@ function displayResult(result) {
   updateProgressBar("confidenceBar", confidence_score || 0, verdict);
 
   // Display individual scores
-  document.getElementById("urlScoreValue").textContent = (url_score || 0).toFixed(
-    2
-  );
-  updateProgressBar("urlScoreBar", url_score || 0, "neutral");
-
-  document.getElementById("visualScoreValue").textContent = (visual_score || 0).toFixed(
-    2
-  );
-  updateProgressBar("visualScoreBar", visual_score || 0, "neutral");
-
-  document.getElementById("behaviorScoreValue").textContent = (
-    behavior_score || 0
-  ).toFixed(2);
-  updateProgressBar("behaviorScoreBar", behavior_score || 0, "neutral");
+  document.getElementById("urlScoreValue").textContent = (url_score || 0).toFixed(2);
+  document.getElementById("visualScoreValue").textContent = (visual_score || 0).toFixed(2);
+  document.getElementById("behaviorScoreValue").textContent = (behavior_score || 0).toFixed(2);
 
   // Display warnings
   const warningsSection = document.getElementById("warnings-section");
@@ -233,20 +259,15 @@ function updateProgressBar(elementId, score, type) {
   const percentage = Math.round((score || 0) * 100);
   bar.style.width = `${percentage}%`;
 
-  bar.className = "mini-bar";
+  bar.className = "progress-fill";
   if (type === "safe") {
-    bar.classList.add("safe");
+    bar.classList.add("safe-fill");
   } else if (type === "suspicious") {
-    bar.classList.add("suspicious");
+    bar.classList.add("suspicious-fill");
   } else if (type === "phishing") {
-    bar.classList.add("phishing");
+    bar.classList.add("phishing-fill");
   } else {
-    bar.classList.add("neutral");
-  }
-
-  if (elementId === "confidenceBar") {
-    bar.className = "confidence-bar";
-    bar.classList.add(type);
+    bar.classList.add("safe-fill");
   }
 }
 
@@ -275,4 +296,23 @@ function handleRetry() {
 // === ANALYTICS DASHBOARD ===
 function openAnalyticsDashboard() {
   chrome.tabs.create({ url: "http://localhost:8000/dashboard" });
+}
+
+// === MENU & PANEL MANAGEMENT ===
+function toggleMenu() {
+  menuPanel.classList.toggle("hidden");
+}
+
+function showPanel(panel) {
+  menuPanel.classList.add("hidden");
+  panel.classList.remove("hidden");
+  panel.classList.add("visible");
+}
+
+function closePanel() {
+  settingsPanel.classList.add("hidden");
+  historyPanel.classList.add("hidden");
+  helpPanel.classList.add("hidden");
+  aboutPanel.classList.add("hidden");
+  menuPanel.classList.remove("hidden");
 }
