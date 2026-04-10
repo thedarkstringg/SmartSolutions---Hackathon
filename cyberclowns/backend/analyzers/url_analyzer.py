@@ -18,6 +18,10 @@ logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ml_detector = PhishingMLDetector.get_instance()
 
+# Gemini cache to avoid quota exhaustion
+GEMINI_CACHE = {}
+MAX_CACHE_SIZE = 1000
+
 
 def extract_url_features(url: str) -> dict:
     """
@@ -146,8 +150,16 @@ async def analyze_url(url: str) -> dict:
         ml_score = None
         rule_score = 0
 
+        # ⭐ PRIORITY 1: Check cache FIRST (avoid quota waste)
+        if url in GEMINI_CACHE:
+            logger.info(f"♻️  Cache hit for {url}")
+            cached = GEMINI_CACHE[url]
+            gemini_score = cached["score"]
+            gemini_details = cached["details"]
+            indicators = cached["indicators"]
+            gemini_called = True  # Mark as called (from cache)
         # ⭐ PRIORITY 1: Call Gemini FIRST for detailed analysis
-        if GEMINI_API_KEY:
+        elif GEMINI_API_KEY:
             try:
                 gemini_called = True
                 genai.configure(api_key=GEMINI_API_KEY)
@@ -193,6 +205,15 @@ Features: {json.dumps(features, indent=2)}"""
                 indicators = result.get("indicators", [])
                 gemini_details = result.get("typosquatting_analysis", "No typosquatting detected")
                 risk_level = result.get("risk_level", "medium")
+
+                # CACHE the result to avoid quota waste on repeated URLs
+                if len(GEMINI_CACHE) < MAX_CACHE_SIZE:
+                    GEMINI_CACHE[url] = {
+                        "score": gemini_score,
+                        "details": gemini_details,
+                        "indicators": indicators
+                    }
+                    logger.info(f"💾 Cached result for {url}")
 
                 logger.info(f"\n🤖 GEMINI (1st PRIORITY): {url}")
                 logger.info(f"   Score: {gemini_score:.2f} | Risk: {risk_level}")
