@@ -333,13 +333,26 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
         # Aggregate scores
         confidence_score = aggregate_scores(url_score, visual_score, behavior_score)
 
-        # Determine verdict
-        if confidence_score < 0.35:
-            verdict = "safe"
-        elif confidence_score < 0.65:
-            verdict = "suspicious"
+        # Determine verdict with behavioral priority
+        # If any behavioral signals are triggered, minimum verdict is "suspicious"
+        has_behavior_warnings = len(behavior_result.get("triggered_signals", [])) > 0
+
+        if has_behavior_warnings:
+            # Behavioral signals detected - at minimum suspicious
+            if confidence_score >= 0.65:
+                verdict = "phishing"
+            else:
+                # Boost confidence if behavior signals present
+                confidence_score = max(confidence_score, 0.40)  # At least moderate suspicion
+                verdict = "suspicious"
         else:
-            verdict = "phishing"
+            # No behavioral signals - use standard thresholds
+            if confidence_score < 0.35:
+                verdict = "safe"
+            elif confidence_score < 0.65:
+                verdict = "suspicious"
+            else:
+                verdict = "phishing"
 
         # Collect warnings
         warnings = (
