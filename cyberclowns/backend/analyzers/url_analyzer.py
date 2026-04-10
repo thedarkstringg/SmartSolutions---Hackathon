@@ -151,7 +151,7 @@ async def analyze_url(url: str) -> dict:
             try:
                 gemini_called = True
                 genai.configure(api_key=GEMINI_API_KEY)
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel("gemini-2.0-flash")
 
                 system_prompt = """You are a cybersecurity expert specializing in phishing URL detection.
 Analyze the given URL CAREFULLY for:
