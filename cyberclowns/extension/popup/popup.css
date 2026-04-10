@@ -38,14 +38,9 @@ body {
 }
 
 .logo-icon {
-  width: 32px;
-  height: 32px;
-  color: #000000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .header h1 {
@@ -660,19 +655,12 @@ body {
   margin-bottom: 32px;
 }
 
-.auth-logo {
+.auth-logo-img {
   width: 64px;
   height: 64px;
-  background-color: #ffffff;
-  color: #000000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 32px;
-  border-radius: 12px;
+  object-fit: contain;
   margin: 0 auto 16px;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  display: block;
 }
 
 .auth-header h1 {

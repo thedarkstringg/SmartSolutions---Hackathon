@@ -5,18 +5,18 @@
 const SUPABASE_URL = "https://tszkdmqjuoxfxbnsdfmw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzemtkbXFqdW94ZnhibnNkZm13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDQ4NDIsImV4cCI6MjA5MTQyMDg0Mn0.FQrPM6bq35NVbnLfKrLT5Caw3CsKGHsmBHrUW-fU9as";
 
-let supabase = null;
+let supabaseClient = null;
 
 // Initialize Supabase
 async function initSupabase() {
   try {
     if (!window.supabase) {
-      console.error("Supabase CDN failed to load - window.supabase is undefined");
+      console.error("Supabase library not found - window.supabase is undefined");
       showLoginError("Service initialization error - refresh extension");
       return false;
     }
 
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log("Supabase initialized successfully");
     return true;
   } catch (error) {
@@ -29,15 +29,20 @@ async function initSupabase() {
 // === DOM ELEMENTS ===
 const authPanel = document.getElementById("auth-panel");
 const mainContent = document.getElementById("main-content");
+
 const loginForm = document.getElementById("login-form");
 const signupForm = document.getElementById("signup-form");
+
+const toggleSignupBtn = document.getElementById("toggle-signup");
+const toggleLoginBtn = document.getElementById("toggle-login");
+
 const loginFormElement = document.getElementById("login-form-element");
 const signupFormElement = document.getElementById("signup-form-element");
+
 const loginError = document.getElementById("login-error");
 const signupError = document.getElementById("signup-error");
-const toggleSignup = document.getElementById("toggle-signup");
-const toggleLogin = document.getElementById("toggle-login");
-const logoutButton = document.getElementById("logout-button");
+
+const logoutBtn = document.getElementById("logout-button");
 
 // === INITIALIZATION ===
 document.addEventListener("DOMContentLoaded", async () => {
@@ -48,79 +53,94 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // CRITICAL: Check auth before anything else
-  await checkAuth();
+  checkSession();
 
-  // Only initialize popup features if authenticated
-  const token = await chrome.storage.local.get("auth_token");
-  if (!token.auth_token) {
-    // Not authenticated - form listeners only
-    setupAuthFormListeners();
-  } else {
-    // Authenticated - setup main features
-    setupMainFeatures();
-  }
+  // Event Listeners
+  if (toggleSignupBtn) toggleSignupBtn.addEventListener("click", () => showSignup());
+  if (toggleLoginBtn) toggleLoginBtn.addEventListener("click", () => showLogin());
+
+  if (loginFormElement) loginFormElement.addEventListener("submit", handleLogin);
+  if (signupFormElement) signupFormElement.addEventListener("submit", handleSignup);
+
+  if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
 });
 
-// === SETUP AUTH FORM LISTENERS ===
-function setupAuthFormListeners() {
-  loginFormElement.addEventListener("submit", handleLogin);
-  signupFormElement.addEventListener("submit", handleSignup);
+// === SESSION MANAGEMENT ===
+async function checkSession() {
+  if (!supabaseClient) return;
 
-  // Toggle between login and signup
-  toggleSignup.addEventListener("click", (e) => {
-    e.preventDefault();
-    loginForm.classList.add("hidden");
-    signupForm.classList.remove("hidden");
-  });
-
-  toggleLogin.addEventListener("click", (e) => {
-    e.preventDefault();
-    signupForm.classList.add("hidden");
-    loginForm.classList.remove("hidden");
-  });
-}
-
-// === SETUP MAIN FEATURES ===
-function setupMainFeatures() {
-  // Logout
-  if (logoutButton) {
-    logoutButton.addEventListener("click", handleLogout);
-  }
-
-  // Call popup.js to setup all main features
-  setupMainPopupFeatures();
-}
-
-// Form submissions
-// Moved into setupAuthFormListeners
-// loginFormElement.addEventListener("submit", handleLogin);
-// signupFormElement.addEventListener("submit", handleSignup);
-
-// === CHECK AUTH STATUS ===
-async function checkAuth() {
   try {
-    const token = await chrome.storage.local.get("auth_token");
-    if (token.auth_token) {
-      // User is logged in
-      authPanel.classList.add("hidden");
-      mainContent.classList.remove("hidden");
-      console.log("User authenticated");
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+    if (error) throw error;
+
+    if (session) {
+      console.log("Session found:", session.user.email);
+      showMainContent(session.user);
     } else {
-      // Show auth panel
-      authPanel.classList.remove("hidden");
-      mainContent.classList.add("hidden");
+      console.log("No active session found");
+      showAuthPanel();
     }
   } catch (error) {
-    console.error("Auth check error:", error);
-    authPanel.classList.remove("hidden");
+    console.error("Session check error:", error);
+    showAuthPanel();
   }
+}
+
+function showAuthPanel() {
+  if (authPanel) authPanel.classList.remove("hidden");
+  if (mainContent) mainContent.classList.add("hidden");
+  showLogin();
+}
+
+function showMainContent(user) {
+  if (authPanel) authPanel.classList.add("hidden");
+  if (mainContent) mainContent.classList.remove("hidden");
+
+  // Save to chrome storage for background scripts
+  chrome.storage.local.set({
+    "auth_token": "authenticated",
+    "user": {
+      id: user.id,
+      email: user.email,
+      name: user.user_metadata?.full_name || user.email.split("@")[0]
+    }
+  });
+}
+
+// === FORM NAVIGATION ===
+function showLogin() {
+  loginForm.classList.remove("hidden");
+  signupForm.classList.add("hidden");
+  hideErrors();
+}
+
+function showSignup() {
+  loginForm.classList.add("hidden");
+  signupForm.classList.remove("hidden");
+  hideErrors();
+}
+
+function hideErrors() {
+  loginError.classList.add("hidden");
+  signupError.classList.add("hidden");
+}
+
+function showLoginError(message) {
+  loginError.textContent = message;
+  loginError.classList.remove("hidden");
+}
+
+function showSignupError(message) {
+  signupError.textContent = message;
+  signupError.classList.remove("hidden");
 }
 
 // === LOGIN ===
 async function handleLogin(e) {
   e.preventDefault();
 
-  if (!supabase) {
+  if (!supabaseClient) {
     showLoginError("Authentication service not available - please reload");
     return;
   }
@@ -129,46 +149,30 @@ async function handleLogin(e) {
   const password = document.getElementById("login-password").value;
 
   if (!email || !password) {
-    showLoginError("Please enter email and password");
+    showLoginError("Please enter both email and password");
     return;
   }
 
   try {
-    // Show loading state
     const btn = loginFormElement.querySelector("button");
     btn.disabled = true;
     btn.textContent = "Signing in...";
 
     // Sign in with Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
-    if (error) {
-      showLoginError(error.message);
-      btn.disabled = false;
-      btn.textContent = "Sign In";
-      return;
+    if (error) throw error;
+
+    if (data.session) {
+      showMainContent(data.user);
     }
-
-    // Store token
-    await chrome.storage.local.set({
-      auth_token: data.session.access_token,
-      user: JSON.stringify(data.user),
-    });
-
-    console.log("Login successful:", data.user.email);
-
-    // Show main content
-    authPanel.classList.add("hidden");
-    mainContent.classList.remove("hidden");
-
-    btn.disabled = false;
-    btn.textContent = "Sign In";
   } catch (error) {
     console.error("Login error:", error);
-    showLoginError("Login failed. Please try again.");
+    showLoginError(error.message || "Invalid email or password");
+  } finally {
     const btn = loginFormElement.querySelector("button");
     btn.disabled = false;
     btn.textContent = "Sign In";
@@ -179,7 +183,7 @@ async function handleLogin(e) {
 async function handleSignup(e) {
   e.preventDefault();
 
-  if (!supabase) {
+  if (!supabaseClient) {
     showSignupError("Authentication service not available - please reload");
     return;
   }
@@ -206,50 +210,34 @@ async function handleSignup(e) {
   }
 
   try {
-    // Show loading state
     const btn = signupFormElement.querySelector("button");
     btn.disabled = true;
     btn.textContent = "Creating account...";
 
     // Sign up with Supabase
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email: email,
       password: password,
       options: {
         data: {
           full_name: name,
-        },
-      },
+        }
+      }
     });
 
-    if (error) {
-      showSignupError(error.message);
-      btn.disabled = false;
-      btn.textContent = "Create Account";
-      return;
+    if (error) throw error;
+
+    if (data.user) {
+      if (data.session) {
+        showMainContent(data.user);
+      } else {
+        showSignupError("Account created! Please check your email for verification.");
+      }
     }
-
-    // Store token
-    if (data.session) {
-      await chrome.storage.local.set({
-        auth_token: data.session.access_token,
-        user: JSON.stringify(data.user),
-      });
-
-      console.log("Signup successful:", data.user.email);
-
-      // Show main content
-      authPanel.classList.add("hidden");
-      mainContent.classList.remove("hidden");
-    } else {
-      showSignupError("Please check your email to confirm your account");
-    }
-
-    btn.disabled = false;
-    btn.textContent = "Create Account";
   } catch (error) {
     console.error("Signup error:", error);
-    showSignupError("Signup failed. Please try again.");
+    showSignupError(error.message || "Failed to create account");
+  } finally {
     const btn = signupFormElement.querySelector("button");
     btn.disabled = false;
     btn.textContent = "Create Account";
@@ -260,8 +248,8 @@ async function handleSignup(e) {
 async function handleLogout() {
   try {
     // Sign out from Supabase
-    if (supabase) {
-      await supabase.auth.signOut();
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
     }
 
     // Clear storage
@@ -269,34 +257,10 @@ async function handleLogout() {
     await chrome.storage.local.remove("user");
 
     // Show auth panel
-    authPanel.classList.remove("hidden");
-    mainContent.classList.add("hidden");
-
-    // Reset forms
-    loginFormElement.reset();
-    signupFormElement.reset();
-    loginForm.classList.remove("hidden");
-    signupForm.classList.add("hidden");
-
-    console.log("Logged out successfully");
+    showAuthPanel();
   } catch (error) {
     console.error("Logout error:", error);
+    // Force show auth anyway
+    showAuthPanel();
   }
-}
-
-// === ERROR HANDLING ===
-function showLoginError(message) {
-  loginError.textContent = message;
-  loginError.classList.remove("hidden");
-  setTimeout(() => {
-    loginError.classList.add("hidden");
-  }, 5000);
-}
-
-function showSignupError(message) {
-  signupError.textContent = message;
-  signupError.classList.remove("hidden");
-  setTimeout(() => {
-    signupError.classList.add("hidden");
-  }, 5000);
 }

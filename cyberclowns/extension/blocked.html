@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚠️ Malicious URL Detected - CyberClowns</title>
+    <title>⚠️ Malicious URL Detected - Tilloff</title>
     <style>
         * {
             margin: 0;
@@ -15,7 +15,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
                 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
                 sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -34,10 +34,11 @@
             border: 2px solid #d50000;
         }
 
-        .warning-icon {
-            font-size: 64px;
+        .logo-icon {
+            width: 80px;
+            height: 80px;
             margin-bottom: 20px;
-            animation: pulse 2s infinite;
+            object-fit: contain;
         }
 
         @keyframes pulse {
@@ -123,14 +124,14 @@
         }
 
         .btn-safe {
-            background: #00C853;
+            background: #000000;
             color: white;
         }
 
         .btn-safe:hover {
-            background: #00a84a;
+            background: #333333;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 200, 83, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
         .btn-back {
@@ -198,7 +199,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="warning-icon">⚠️</div>
+        <img src="icon.png" alt="Tilloff" class="logo-icon" />
 
         <h1>Malicious URL Blocked</h1>
         <p class="subtitle">This website has been identified as malicious and has been blocked for your protection.</p>
@@ -211,7 +212,7 @@
 
         <div class="info-box">
             <strong>Why was this blocked?</strong><br>
-            CyberClowns uses OpenCTI threat intelligence to proactively block known malicious URLs before you can visit them. This protects you from phishing attacks, malware distribution, and credential theft.
+            Tilloff uses OpenCTI threat intelligence to proactively block known malicious URLs before you can visit them. This protects you from phishing attacks, malware distribution, and credential theft.
         </div>
 
         <div class="reasons">
@@ -232,7 +233,7 @@
         </div>
 
         <div class="footer">
-            <p>Protected by <strong>CyberClowns</strong> | Threat Intelligence: OpenCTI</p>
+            <p>Protected by <strong>Tilloff</strong> | Threat Intelligence: OpenCTI</p>
             <p style="margin-top: 8px;">
                 <a href="https://github.com" target="_blank">Learn more</a> |
                 <a href="javascript:void(0)" onclick="openSettings()">Settings</a>
@@ -271,7 +272,7 @@
         }
 
         function reportFalsePositive() {
-            alert('Thank you for reporting. Please send details to: security@cyberclowns.local');
+            alert('Thank you for reporting. Please send details to: support@tilloff.security');
             // In production: open a form or send telemetry
         }
 
