@@ -9,6 +9,10 @@ const BACKEND_URL = "http://localhost:8000";
 const OPENCTI_URL = "http://20.244.15.36:8080/graphql";
 const OPENCTI_TOKEN = "19616aa7-62ab-49f8-9e68-2b9b2c9b515c";
 
+// VirusTotal configuration (Commercial threat database)
+const VIRUSTOTAL_API_KEY = "5c926a263e1b886135b15fdc0c7e3a3aebe43d5091ba22c96168f5f2ea2d0822"; // Replace with your key
+const VIRUSTOTAL_URL = "https://www.virustotal.com/api/v3/urls";
+
 // === STATE MANAGEMENT ===
 const analysisCache = new Map(); // tabId → result
 const pendingAnalysis = new Map(); // tabId → boolean
@@ -114,6 +118,72 @@ async function checkUrlInOpenCTI(targetUrl) {
   } catch (error) {
     console.error("[OpenCTI] Connection error:", error);
     return false; // Don't block on error
+  }
+}
+
+// === VIRUSTOTAL INTEGRATION ===
+async function checkUrlInVirusTotal(targetUrl) {
+  // Skip if no API key configured
+  if (!VIRUSTOTAL_API_KEY || VIRUSTOTAL_API_KEY.includes('YOUR_VIRUSTOTAL')) {
+    return { checked: false, malicious: false, engines: 0 };
+  }
+
+  try {
+    // Encode URL for VirusTotal API
+    const urlEncoded = new URLSearchParams();
+    urlEncoded.append('url', targetUrl);
+
+    const response = await fetch(VIRUSTOTAL_URL, {
+      method: 'POST',
+      headers: {
+        'x-apikey': VIRUSTOTAL_API_KEY
+      },
+      body: urlEncoded
+    });
+
+    if (!response.ok) {
+      console.warn(`[VirusTotal] API error: ${response.status}`);
+      return { checked: false, malicious: false, engines: 0 };
+    }
+
+    const data = await response.json();
+    const analysisId = data.data?.id;
+
+    if (!analysisId) {
+      console.warn('[VirusTotal] No analysis ID returned');
+      return { checked: false, malicious: false, engines: 0 };
+    }
+
+    // Get analysis results
+    const analysisUrl = `https://www.virustotal.com/api/v3/analyses/${analysisId}`;
+    const analysisResponse = await fetch(analysisUrl, {
+      headers: {
+        'x-apikey': VIRUSTOTAL_API_KEY
+      }
+    });
+
+    if (!analysisResponse.ok) {
+      return { checked: false, malicious: false, engines: 0 };
+    }
+
+    const analysisData = await analysisResponse.json();
+    const stats = analysisData.data?.attributes?.stats || {};
+
+    console.log(`[VirusTotal] Results for ${targetUrl}:`, stats);
+
+    // Check if URL is flagged as malicious
+    const maliciousCount = stats.malicious || 0;
+    const isMalicious = maliciousCount > 0;
+
+    return {
+      checked: true,
+      malicious: isMalicious,
+      engines: maliciousCount,
+      stats: stats
+    };
+  } catch (error) {
+    console.error("[VirusTotal] Connection error:", error);
+    return { checked: false, malicious: false, engines: 0 };
   }
 }
 
@@ -225,22 +295,68 @@ async function checkBackendHealth() {
   return false;
 }
 
-// === OPENCTI URL BLOCKING ===
-// Intercept navigation and check against OpenCTI threat intelligence
+// === TRIPLE DETECTION: OpenCTI + VirusTotal + Backend ML ===
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Only check main frame navigations (not iframes)
   if (details.frameId === 0 && details.url.startsWith('http')) {
-    console.log(`[Navigation] Checking URL: ${details.url}`);
+    const url = details.url;
+    console.log(`\n[🔍 TRIPLE DETECTION] Analyzing: ${url}`);
 
-    const isMalicious = await checkUrlInOpenCTI(details.url);
+    let detectionResults = {
+      url: url,
+      timestamp: new Date().toISOString(),
+      opencti: { checked: false, malicious: false },
+      virustotal: { checked: false, malicious: false, engines: 0 },
+      blocked: false
+    };
 
-    if (isMalicious) {
-      console.log(`[OpenCTI] BLOCKED malicious URL: ${details.url}`);
-      // Redirect to blocked page
-      const blockPageUrl = chrome.runtime.getURL("blocked.html");
-      chrome.tabs.update(details.tabId, { url: blockPageUrl });
-    } else {
-      console.log(`[OpenCTI] URL passed OpenCTI check: ${details.url}`);
+    try {
+      // 1️⃣ Check OpenCTI
+      console.log('[1/3] Checking OpenCTI...');
+      const openctiMalicious = await checkUrlInOpenCTI(url);
+      detectionResults.opencti = {
+        checked: true,
+        malicious: openctiMalicious
+      };
+      console.log(`[OpenCTI] Result: ${openctiMalicious ? '🚨 MALICIOUS' : '✅ SAFE'}`);
+
+      // 2️⃣ Check VirusTotal
+      console.log('[2/3] Checking VirusTotal...');
+      const vtResults = await checkUrlInVirusTotal(url);
+      detectionResults.virustotal = vtResults;
+      if (vtResults.checked) {
+        console.log(`[VirusTotal] Result: ${vtResults.malicious ? `🚨 MALICIOUS (${vtResults.engines} engines)` : '✅ SAFE'}`);
+      } else {
+        console.log('[VirusTotal] Not checked (API not configured or unavailable)');
+      }
+
+      // 3️⃣ Decision: Block if ANY source flags it
+      const shouldBlock = openctiMalicious || (vtResults.checked && vtResults.malicious);
+
+      if (shouldBlock) {
+        console.log(`\n🛑 BLOCKING URL - Threat detected by: ${openctiMalicious ? 'OpenCTI' : ''} ${vtResults.malicious ? 'VirusTotal' : ''}`);
+        detectionResults.blocked = true;
+
+        // Log to Splunk if available
+        if (typeof ExtensionSplunkLogger !== 'undefined') {
+          ExtensionSplunkLogger.logPhishingDetection(
+            'phishing',
+            details.tabId.toString(),
+            1.0, // High confidence
+            [`Blocked by triple detection: OpenCTI=${openctiMalicious}, VirusTotal=${vtResults.malicious}`],
+            0, 0, 0
+          );
+        }
+
+        // Redirect to blocked page
+        const blockPageUrl = chrome.runtime.getURL("blocked.html");
+        chrome.tabs.update(details.tabId, { url: blockPageUrl });
+      } else {
+        console.log(`\n✅ PASSED triple detection - Allowing URL`);
+      }
+
+    } catch (error) {
+      console.error('[Triple Detection] Error:', error);
     }
   }
 });
