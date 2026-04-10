@@ -25,28 +25,34 @@ const BADGE_COLORS = {
 // === OPENCTI INTEGRATION ===
 async function checkUrlInOpenCTI(targetUrl) {
   // Whitelist safe domains to reduce false positives
-  const safedomains = [
+  const safeDomains = [
     'localhost', '127.0.0.1', 'chrome://', 'about:',
-    'google.com', 'github.com', 'microsoft.com', 'apple.com'
+    'google.com', 'github.com', 'microsoft.com', 'apple.com',
+    'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com'
   ];
 
   try {
     // Don't check internal/safe domains
-    if (safedomains.some(domain => targetUrl.includes(domain))) {
+    if (safeDomains.some(domain => targetUrl.includes(domain))) {
       return false;
     }
   } catch (e) {
     // Ignore
   }
 
+  // Query for indicators with malware/phishing labels specifically
   const query = `
     query($search: String) {
-      stixCyberObservables(search: $search, first: 1) {
+      indicators(search: $search, first: 5) {
         edges {
           node {
-            observable_value
-            objectMarking {
-              definition_type
+            id
+            pattern
+            pattern_type
+            labels
+            description
+            x_opencti_detection {
+              count
             }
           }
         }
@@ -68,19 +74,40 @@ async function checkUrlInOpenCTI(targetUrl) {
 
     const data = await response.json();
 
-    console.log(`[OpenCTI] Query result for ${targetUrl}:`, data);
+    console.log(`[OpenCTI] Query for ${targetUrl}:`, data);
 
-    // Check for actual malicious results (not just any match)
-    if (data && data.data && data.data.stixCyberObservables &&
-        data.data.stixCyberObservables.edges &&
-        data.data.stixCyberObservables.edges.length > 0) {
+    // Check if we got error response
+    if (data.errors) {
+      console.warn(`[OpenCTI] Query error:`, data.errors);
+      return false;
+    }
 
-      const edge = data.data.stixCyberObservables.edges[0];
-      console.log(`[OpenCTI] Found observable:`, edge.node.observable_value);
+    // Check for actual malicious indicators
+    if (data && data.data && data.data.indicators &&
+        data.data.indicators.edges &&
+        data.data.indicators.edges.length > 0) {
 
-      // Only block if it's marked as malicious (has specific threat marking)
-      // This prevents false positives from legitimate URLs in the database
-      return true;
+      // Look for indicators labeled as malware, phishing, or malicious
+      for (const edge of data.data.indicators.edges) {
+        const indicator = edge.node;
+        const labels = indicator.labels || [];
+        const description = (indicator.description || '').toLowerCase();
+
+        // Check for malicious labels
+        const isMalicious = labels.some(label =>
+          label.toLowerCase().includes('malware') ||
+          label.toLowerCase().includes('phishing') ||
+          label.toLowerCase().includes('c2') ||
+          label.toLowerCase().includes('botnet')
+        ) || description.includes('phishing') ||
+           description.includes('malware') ||
+           description.includes('malicious');
+
+        if (isMalicious) {
+          console.log(`[OpenCTI] Malicious indicator found:`, indicator);
+          return true;
+        }
+      }
     }
 
     return false;
