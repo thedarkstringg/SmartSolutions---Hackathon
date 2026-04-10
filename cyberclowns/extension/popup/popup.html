@@ -89,6 +89,7 @@
           <h1>Tilloff</h1>
         </div>
         <div class="header-buttons">
+          <button id="account-button" class="header-btn" title="Account">👤</button>
           <button id="dashboard-header-btn" class="header-btn" title="Dashboard">◧</button>
           <button id="menu-button" class="menu-button">≡</button>
         </div>
@@ -255,6 +256,26 @@
             </ul>
           </div>
           <p style="color: #666666; font-size: 10px; text-align: center;">© 2026 Tilloff. Advanced Security Solutions.</p>
+        </div>
+      </div>
+
+      <!-- Account Panel -->
+      <div id="account-panel" class="panel hidden">
+        <div class="panel-header">
+          <button class="back-button">← Back</button>
+          <h2>Account</h2>
+        </div>
+        <div class="panel-content">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <div style="width: 64px; height: 64px; margin: 0 auto 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white;">👤</div>
+            <p id="account-name" style="color: #ffffff; font-size: 14px; font-weight: 600; margin-bottom: 4px;">User</p>
+            <p id="account-email" style="color: #999999; font-size: 12px;">user@email.com</p>
+          </div>
+          <div style="background-color: #1a1a1a; border: 1px solid #333333; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+            <p style="color: #999999; font-size: 10px; margin-bottom: 8px;"><strong>Account Type:</strong></p>
+            <p id="account-type" style="color: #00c853; font-size: 11px;">Local Account</p>
+          </div>
+          <button id="account-logout-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 8px;">Logout</button>
         </div>
       </div>
     </div>

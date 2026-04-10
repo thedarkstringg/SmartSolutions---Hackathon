@@ -42,7 +42,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://tszkdmqjuoxfxbnsdfmw.supabase.co https://cdn.jsdelivr.net"
+    "extension_pages": "script-src 'self'; connect-src 'self' https://tszkdmqjuoxfxbnsdfmw.supabase.co https://cdn.jsdelivr.net"
   }
 }
 

@@ -11,6 +11,7 @@ const resultsState = document.getElementById("results-state");
 const errorState = document.getElementById("error-state");
 const rescanButton = document.getElementById("rescan-button");
 const retryButton = document.getElementById("retry-button");
+const accountButton = document.getElementById("account-button");
 const dashboardHeaderBtn = document.getElementById("dashboard-header-btn");
 const menuButton = document.getElementById("menu-button");
 const menuPanel = document.getElementById("menu-panel");
@@ -27,6 +28,7 @@ const settingsPanel = document.getElementById("settings-panel");
 const historyPanel = document.getElementById("history-panel");
 const helpPanel = document.getElementById("help-panel");
 const aboutPanel = document.getElementById("about-panel");
+const accountPanel = document.getElementById("account-panel");
 
 // Back buttons
 const backButtons = document.querySelectorAll(".back-button");
@@ -42,6 +44,7 @@ function setupMainPopupFeatures() {
   // Button event listeners
   rescanButton.addEventListener("click", handleRescan);
   retryButton.addEventListener("click", handleRetry);
+  accountButton.addEventListener("click", () => openAccountPanel());
   dashboardHeaderBtn.addEventListener("click", openAnalyticsDashboard);
   menuButton.addEventListener("click", toggleMenu);
   closeMenuButton.addEventListener("click", toggleMenu);
@@ -56,6 +59,9 @@ function setupMainPopupFeatures() {
   backButtons.forEach(btn => {
     btn.addEventListener("click", closePanel);
   });
+
+  // Account logout button
+  document.getElementById("account-logout-btn").addEventListener("click", handleLogout);
 
   // Initialize the popup
   initializePopup();
@@ -293,6 +299,13 @@ function handleRetry() {
   pollTimeout = setTimeout(loadResult, 1000);
 }
 
+function handleLogout() {
+  // Call the logout function from auth.js
+  if (typeof window.handleLogout === "function") {
+    window.handleLogout();
+  }
+}
+
 // === ANALYTICS DASHBOARD ===
 function openAnalyticsDashboard() {
   chrome.tabs.create({ url: "http://localhost:8000/dashboard" });
@@ -314,5 +327,23 @@ function closePanel() {
   historyPanel.classList.add("hidden");
   helpPanel.classList.add("hidden");
   aboutPanel.classList.add("hidden");
+  accountPanel.classList.add("hidden");
   menuPanel.classList.remove("hidden");
+}
+
+// === ACCOUNT PANEL ===
+async function openAccountPanel() {
+  // Load user info from storage
+  const storage = await chrome.storage.local.get("current_user");
+  const user = storage.current_user || { email: "user@email.com", name: "User" };
+
+  // Update account panel
+  document.getElementById("account-name").textContent = user.name || "User";
+  document.getElementById("account-email").textContent = user.email;
+
+  // Show if local or cloud auth
+  const isLocal = localStorage && localStorage.getItem ? true : false;
+  document.getElementById("account-type").textContent = isLocal ? "Local Account" : "Cloud Account";
+
+  showPanel(accountPanel);
 }
