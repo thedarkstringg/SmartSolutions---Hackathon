@@ -18,7 +18,18 @@ cd "$SCRIPT_DIR/backend" || {
     exit 1
 }
 
+# Create virtual environment if it doesn't exist
+if [ ! -d venv ]; then
+    echo "🐍 Creating Python virtual environment..."
+    python3 -m venv venv
+    echo ""
+fi
+
+# Activate virtual environment
+source venv/bin/activate
+
 echo "📦 Installing dependencies..."
+pip install --upgrade pip
 pip install -r requirements.txt
 echo ""
 
@@ -31,6 +42,7 @@ if [ ! -f .env ]; then
     echo ""
     echo "Get your key from: https://aistudio.google.com/app/apikey"
     echo ""
+    deactivate
     exit 1
 fi
 
@@ -48,13 +60,6 @@ if [ ! -f models/phishing_detector.pkl ]; then
     echo "🤖 Building ML phishing detector model..."
     python3 scripts/build_ml_model.py
     echo ""
-fi
-
-# Check for uvicorn
-if ! command -v uvicorn &> /dev/null; then
-    echo "❌ uvicorn not found! Install dependencies:"
-    echo "    pip install -r requirements.txt"
-    exit 1
 fi
 
 echo "✅ Starting FastAPI server on http://localhost:8000"
