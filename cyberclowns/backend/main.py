@@ -221,6 +221,7 @@ class AnalysisResponse(BaseModel):
     confidence_score: float
     verdict: str
     warnings: List[str]
+    warning_details: Dict[str, str] = {}  # Maps warning text to severity level
     url_indicators: List[str] = []
     features: Dict[str, Any] = {}
     scan_timestamp: str
@@ -354,23 +355,31 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
             else:
                 verdict = "phishing"
 
-        # Collect warnings
-        warnings = (
-            url_result.get("indicators", [])
-            + behavior_result.get("triggered_signals", [])
-        )
+        # Collect warnings with severity levels
+        warning_details = {}  # Maps warning to severity
+        warnings = []
+
+        # Add URL indicators
+        for indicator in url_result.get("indicators", []):
+            warnings.append(indicator)
+            warning_details[indicator] = "WARNING"  # URL indicators are standard warnings
+
+        # Add behavior signals with their severity levels
+        for signal in behavior_result.get("triggered_signals", []):
+            warnings.append(signal)
+            severity = behavior_result.get("signal_severity", {}).get(signal, "WARNING")
+            warning_details[signal] = severity
 
         if visual_result.get("matched_site"):
             verdict_type = visual_result.get("verdict", "")
             if verdict_type == "clone_detected":
-                warnings.insert(
-                    0,
-                    f"⚠️ VISUAL CLONE: Page mimics {visual_result.get('matched_site')} login interface",
-                )
+                visual_warning = f"⚠️ VISUAL CLONE: Page mimics {visual_result.get('matched_site')} login interface"
+                warnings.insert(0, visual_warning)
+                warning_details[visual_warning] = "CRITICAL"  # Visual clones are critical
             elif verdict_type == "suspicious":
-                warnings.append(
-                    f"Visual similarity to {visual_result.get('matched_site')} (distance: {visual_result.get('hash_distance')})"
-                )
+                visual_warning = f"Visual similarity to {visual_result.get('matched_site')} (distance: {visual_result.get('hash_distance')})"
+                warnings.append(visual_warning)
+                warning_details[visual_warning] = "SUSPICIOUS"
 
         # Extract site info
         parsed_url = urlparse(request.url)
@@ -423,6 +432,7 @@ async def analyze(request: AnalysisRequest) -> AnalysisResponse:
             confidence_score=confidence_score,
             verdict=verdict,
             warnings=warnings,
+            warning_details=warning_details,
             url_indicators=url_result.get("indicators", []),
             features=url_result.get("features", {}),
             scan_timestamp=scan_timestamp,
