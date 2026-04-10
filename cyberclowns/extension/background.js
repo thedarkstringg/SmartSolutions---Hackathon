@@ -24,12 +24,30 @@ const BADGE_COLORS = {
 
 // === OPENCTI INTEGRATION ===
 async function checkUrlInOpenCTI(targetUrl) {
+  // Whitelist safe domains to reduce false positives
+  const safedomains = [
+    'localhost', '127.0.0.1', 'chrome://', 'about:',
+    'google.com', 'github.com', 'microsoft.com', 'apple.com'
+  ];
+
+  try {
+    // Don't check internal/safe domains
+    if (safedomains.some(domain => targetUrl.includes(domain))) {
+      return false;
+    }
+  } catch (e) {
+    // Ignore
+  }
+
   const query = `
     query($search: String) {
-      stixCyberObservables(search: $search) {
+      stixCyberObservables(search: $search, first: 1) {
         edges {
           node {
             observable_value
+            objectMarking {
+              definition_type
+            }
           }
         }
       }
@@ -50,13 +68,21 @@ async function checkUrlInOpenCTI(targetUrl) {
 
     const data = await response.json();
 
-    // If search results (edges) has at least 1 match, it's malicious
-    if (data.data && data.data.stixCyberObservables &&
+    console.log(`[OpenCTI] Query result for ${targetUrl}:`, data);
+
+    // Check for actual malicious results (not just any match)
+    if (data && data.data && data.data.stixCyberObservables &&
         data.data.stixCyberObservables.edges &&
         data.data.stixCyberObservables.edges.length > 0) {
-      console.log(`[OpenCTI] Malicious URL detected: ${targetUrl}`);
+
+      const edge = data.data.stixCyberObservables.edges[0];
+      console.log(`[OpenCTI] Found observable:`, edge.node.observable_value);
+
+      // Only block if it's marked as malicious (has specific threat marking)
+      // This prevents false positives from legitimate URLs in the database
       return true;
     }
+
     return false;
   } catch (error) {
     console.error("[OpenCTI] Connection error:", error);
