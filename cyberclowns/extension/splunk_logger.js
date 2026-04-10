@@ -18,6 +18,9 @@ class ExtensionSplunkLogger {
     };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
       const response = await fetch(this.SPLUNK_URL, {
         method: "POST",
         headers: {
@@ -25,7 +28,10 @@ class ExtensionSplunkLogger {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         console.log(`✅ Splunk event sent: ${eventType}`);
@@ -35,8 +41,8 @@ class ExtensionSplunkLogger {
         return false;
       }
     } catch (error) {
-      console.error("Splunk send error:", error);
-      return false;
+      console.warn(`⚠️  Splunk unavailable (${error.message})`);
+      return false; // Silently fail - don't block extension
     }
   }
 
