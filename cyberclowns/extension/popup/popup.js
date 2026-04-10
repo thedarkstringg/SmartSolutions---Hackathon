@@ -189,9 +189,14 @@ function displayResult(result) {
     confidence_score,
     verdict,
     warnings,
+    warning_details,
     scan_timestamp,
     site_info,
   } = result;
+
+  // Store warning details globally for modal
+  window.currentWarnings = warnings || [];
+  window.currentWarningDetails = warning_details || {};
 
   // Display URL
   const domain = site_info?.domain || "Unknown";
@@ -226,7 +231,7 @@ function displayResult(result) {
   document.getElementById("visualScoreValue").textContent = (visual_score || 0).toFixed(2);
   document.getElementById("behaviorScoreValue").textContent = (behavior_score || 0).toFixed(2);
 
-  // Display warnings
+  // Display warnings with severity
   const warningsSection = document.getElementById("warnings-section");
   const warningsList = document.getElementById("warnings-list");
 
@@ -234,9 +239,30 @@ function displayResult(result) {
     warningsList.innerHTML = "";
     warnings.forEach((warning) => {
       const li = document.createElement("li");
-      li.textContent = warning;
+      const severity = warning_details?.[warning] || "WARNING";
+
+      // Create warning item with severity badge
+      li.innerHTML = `
+        <span class="warning-text">${warning}</span>
+        <span class="warning-badge severity-${severity.toLowerCase()}">${severity}</span>
+      `;
+      li.style.display = "flex";
+      li.style.justifyContent = "space-between";
+      li.style.alignItems = "center";
+      li.style.padding = "8px 0";
       warningsList.appendChild(li);
     });
+
+    // Add "View Details" button
+    const detailsBtn = document.createElement("button");
+    detailsBtn.id = "view-details-btn";
+    detailsBtn.textContent = "View Details →";
+    detailsBtn.className = "btn btn-secondary";
+    detailsBtn.style.marginTop = "12px";
+    detailsBtn.style.width = "100%";
+    detailsBtn.addEventListener("click", openDetailsModal);
+    warningsList.parentElement.appendChild(detailsBtn);
+
     warningsSection.classList.remove("hidden");
   } else {
     warningsSection.classList.add("hidden");
@@ -346,4 +372,71 @@ async function openAccountPanel() {
   document.getElementById("account-type").textContent = isLocal ? "Local Account" : "Cloud Account";
 
   showPanel(accountPanel);
+}
+
+// === MODAL MANAGEMENT ===
+function showModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.add("active");
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.remove("active");
+    modal.classList.add("hidden");
+  }
+}
+
+function openDetailsModal() {
+  const detailsModal = document.getElementById("details-modal");
+  if (!detailsModal) {
+    // Create modal if it doesn't exist
+    const modal = document.createElement("div");
+    modal.id = "details-modal";
+    modal.className = "modal hidden";
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Warning Details</h3>
+          <button class="modal-close" onclick="closeModal('details-modal')">✕</button>
+        </div>
+        <div class="modal-body" id="details-content">
+          <!-- Warning details will be populated here -->
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal('details-modal')">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // Populate warning details
+  const detailsContent = document.getElementById("details-content");
+  const warnings = window.currentWarnings || [];
+  const warningDetails = window.currentWarningDetails || {};
+
+  if (warnings.length === 0) {
+    detailsContent.innerHTML = "<p>No warning details available.</p>";
+  } else {
+    detailsContent.innerHTML = warnings
+      .map((warning) => {
+        const severity = warningDetails[warning] || "WARNING";
+        return `
+          <div style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #ddd;">
+            <div style="font-weight: 500; margin-bottom: 4px;">${warning}</div>
+            <div style="font-size: 12px; color: #666;">
+              Severity: <span class="severity-badge severity-${severity.toLowerCase()}">${severity}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  showModal("details-modal");
 }
