@@ -131,60 +131,57 @@ def rule_based_score(features: dict) -> float:
 async def analyze_url(url: str) -> dict:
     """
     Analyze URL for phishing indicators using hybrid approach:
-    1. Fast local rule-based analysis
-    2. ML model classification
-    3. Optional Gemini AI analysis if rule score is moderate
+    🤖 PRIORITY 1: Gemini AI first (detailed typosquatting/phishing analysis) - 60% weight
+    2. ML model classification - 25% weight
+    3. Rule-based analysis - 15% weight
 
     Returns dict with score, indicators, features, and metadata
     """
     try:
-        # Step 1: Extract features and get rule-based score
         features = extract_url_features(url)
-        rule_score = rule_based_score(features)
-
         indicators = []
         gemini_called = False
         gemini_score = None
+        gemini_details = ""
         ml_score = None
+        rule_score = 0
 
-        # Step 2: Get ML model prediction
-        try:
-            ml_score = ml_detector.predict(features)
-            logger.info(f"ML score for {url}: {ml_score:.2f}")
-        except Exception as e:
-            logger.warning(f"ML prediction failed: {e}")
-            ml_score = None
-
-        # Step 3: Blend scores intelligently
-        # If we have both rule and ML scores, use both
-        if ml_score is not None:
-            # Combine: 50% rule-based, 50% ML
-            blended_score = (rule_score * 0.5) + (ml_score * 0.5)
-        else:
-            blended_score = rule_score
-
-        # Step 4: Only call Gemini if score is moderate
-        # Skip if very high confidence (>0.7 already phishing) or very low (<0.1 definitely safe)
-        if 0.1 <= blended_score <= 0.7 and GEMINI_API_KEY:
+        # ⭐ PRIORITY 1: Call Gemini FIRST for detailed analysis
+        if GEMINI_API_KEY:
             try:
                 gemini_called = True
                 genai.configure(api_key=GEMINI_API_KEY)
                 model = genai.GenerativeModel("gemini-1.5-flash")
 
                 system_prompt = """You are a cybersecurity expert specializing in phishing URL detection.
-Analyze the given URL and return ONLY a valid JSON object with NO markdown,
-NO explanation, NO backticks. Format:
-{"score": <float 0.0-1.0>, "indicators": [<list of specific suspicious elements>]}
-Score meaning: 0.0=definitely safe, 1.0=definitely phishing"""
+Analyze the given URL CAREFULLY for:
+1. TYPOSQUATTING - legitimate domain names with slight misspellings (PayPal→PayPal, Amazon→Amazo)
+2. Domain spoofing - lookalike domains mimicking popular sites
+3. Suspicious subdomains that don't match legitimate patterns
+4. Credential harvesting patterns (login, verify, confirm, update)
+5. Obfuscation techniques (IP addresses, encoding, redirects)
+6. Brand impersonation
+7. Known phishing patterns or suspicious TLDs
 
-                user_message = f"""Analyze this URL for phishing: {url}
+Return ONLY a valid JSON object with NO markdown, NO backticks:
+{
+  "score": <float 0.0-1.0>,
+  "risk_level": "safe" | "low" | "medium" | "high" | "critical",
+  "indicators": [<list of specific suspicious elements>],
+  "typosquatting_analysis": "<detailed analysis of typosquatting attempts>",
+  "confidence": <float 0.0-1.0>,
+  "reasoning": "<brief explanation>"
+}
+0.0=definitely safe, 1.0=definitely phishing"""
 
-URL features detected: {json.dumps(features)}"""
+                user_message = f"""Analyze for PHISHING/TYPOSQUATTING:
+URL: {url}
+Features: {json.dumps(features, indent=2)}"""
 
                 response = model.generate_content(f"{system_prompt}\n\n{user_message}")
                 response_text = response.text.strip()
 
-                # Remove markdown backticks if present
+                # Remove markdown
                 if response_text.startswith("```"):
                     response_text = response_text.split("```")[1]
                     if response_text.startswith("json"):
@@ -192,35 +189,63 @@ URL features detected: {json.dumps(features)}"""
                     response_text = response_text.strip()
 
                 result = json.loads(response_text)
-                gemini_score = float(result.get("score", blended_score))
+                gemini_score = float(result.get("score", 0.5))
                 indicators = result.get("indicators", [])
+                gemini_details = result.get("typosquatting_analysis", "No typosquatting detected")
+                risk_level = result.get("risk_level", "medium")
 
-                # Final blend: 40% Gemini, 30% rule, 30% ML
-                final_score = (gemini_score * 0.4) + (rule_score * 0.3)
-                if ml_score is not None:
-                    final_score = (gemini_score * 0.4) + (rule_score * 0.2) + (ml_score * 0.4)
+                logger.info(f"\n🤖 GEMINI (1st PRIORITY): {url}")
+                logger.info(f"   Score: {gemini_score:.2f} | Risk: {risk_level}")
+                logger.info(f"   Typosquatting: {gemini_details[:120]}...")
+                logger.info(f"   Reasoning: {result.get('reasoning', 'N/A')}")
 
             except Exception as e:
-                logger.warning(f"Gemini analysis failed: {e}")
-                final_score = blended_score
-                indicators = features.get("suspicious_keywords", [])
+                logger.warning(f"Gemini failed: {e} - using fallback")
+                gemini_called = False
+
+        # PRIORITY 2: Rule-based analysis
+        rule_score = rule_based_score(features)
+        logger.info(f"   Rule score: {rule_score:.2f}")
+
+        # PRIORITY 3: ML model
+        try:
+            ml_score = ml_detector.predict(features)
+            logger.info(f"   ML score: {ml_score:.2f}")
+        except Exception as e:
+            logger.warning(f"ML failed: {e}")
+            ml_score = None
+
+        # BLEND with HIGH priority to Gemini
+        if gemini_score is not None:
+            if ml_score is not None:
+                # Gemini: 60%, ML: 25%, Rule: 15%
+                final_score = (gemini_score * 0.60) + (ml_score * 0.25) + (rule_score * 0.15)
+            else:
+                # Gemini: 70%, Rule: 30%
+                final_score = (gemini_score * 0.70) + (rule_score * 0.30)
+            logger.info(f"✅ USING GEMINI (HIGH PRIORITY) - Final: {final_score:.2f}\n")
         else:
-            final_score = blended_score
-            # Use features as indicators if no Gemini call
+            if ml_score is not None:
+                final_score = (ml_score * 0.6) + (rule_score * 0.4)
+            else:
+                final_score = rule_score
+            logger.info(f"⚠️  Gemini failed - using ML/Rule - Final: {final_score:.2f}\n")
+
+        # Add rule indicators if Gemini didn't find enough
+        if len(indicators) < 2:
             if features["has_ip_address"]:
-                indicators.append("URL contains IP address instead of domain")
+                indicators.append("URL contains IP address")
             if features["has_at_symbol"]:
-                indicators.append("URL contains @ symbol (credential embedding)")
-            if features["has_double_slash_redirect"]:
-                indicators.append("URL contains double slash redirect pattern")
-            if len(features["suspicious_keywords"]) > 0:
-                indicators.append(f"Suspicious keywords found: {', '.join(features['suspicious_keywords'])}")
+                indicators.append("URL contains @ symbol")
             if not features["is_https"]:
-                indicators.append("URL uses HTTP instead of HTTPS")
+                indicators.append("Uses HTTP (not HTTPS)")
+            if len(features["suspicious_keywords"]) > 0:
+                indicators.append(f"Suspicious keywords: {', '.join(features['suspicious_keywords'])}")
 
         return {
             "score": round(final_score, 2),
             "indicators": indicators,
+            "gemini_details": gemini_details,
             "features": features,
             "rule_score": round(rule_score, 2),
             "ml_score": round(ml_score, 2) if ml_score else None,
