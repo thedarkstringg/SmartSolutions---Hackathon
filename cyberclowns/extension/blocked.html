@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚠️ Malicious URL Detected - CyberClowns</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 2px solid #d50000;
+        }
+
+        .warning-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        h1 {
+            color: #d50000;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .threat-details {
+            background: #f8f8f8;
+            border-left: 4px solid #d50000;
+            padding: 15px;
+            margin-bottom: 30px;
+            text-align: left;
+            border-radius: 6px;
+        }
+
+        .threat-details p {
+            margin: 8px 0;
+            color: #333;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .threat-details label {
+            font-weight: 600;
+            color: #d50000;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .threat-details .url {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #64b5f6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #1565c0;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #0d47a1;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-safe {
+            background: #00C853;
+            color: white;
+        }
+
+        .btn-safe:hover {
+            background: #00a84a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 200, 83, 0.3);
+        }
+
+        .btn-back {
+            background: #666;
+            color: white;
+        }
+
+        .btn-back:hover {
+            background: #555;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-report {
+            background: transparent;
+            color: #1565c0;
+            border: 2px solid #1565c0;
+        }
+
+        .btn-report:hover {
+            background: #e3f2fd;
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .footer a {
+            color: #0d47a1;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .reasons {
+            text-align: left;
+            background: #fff9c4;
+            border-left: 4px solid #fbc02d;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+        }
+
+        .reasons h3 {
+            color: #f57f17;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .reasons ul {
+            margin-left: 20px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .reasons li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="warning-icon">⚠️</div>
+
+        <h1>Malicious URL Blocked</h1>
+        <p class="subtitle">This website has been identified as malicious and has been blocked for your protection.</p>
+
+        <div class="threat-details">
+            <label>Blocked by OpenCTI Threat Intelligence</label>
+            <p>This URL matches known phishing, malware, or malicious websites in our threat database.</p>
+            <div class="url" id="blockedUrl">[Loading URL...]</div>
+        </div>
+
+        <div class="info-box">
+            <strong>Why was this blocked?</strong><br>
+            CyberClowns uses OpenCTI threat intelligence to proactively block known malicious URLs before you can visit them. This protects you from phishing attacks, malware distribution, and credential theft.
+        </div>
+
+        <div class="reasons">
+            <h3>Possible reasons:</h3>
+            <ul>
+                <li>Phishing website (credential harvesting)</li>
+                <li>Malware distribution site</li>
+                <li>Command & Control (C2) server</li>
+                <li>Data exfiltration endpoint</li>
+                <li>Known threat actor infrastructure</li>
+            </ul>
+        </div>
+
+        <div class="actions">
+            <button class="btn-back" onclick="goBack()">← Go Back</button>
+            <button class="btn-safe" onclick="openDashboard()">📊 View Dashboard</button>
+            <button class="btn-report" onclick="reportFalsePositive()">🚩 False Positive?</button>
+        </div>
+
+        <div class="footer">
+            <p>Protected by <strong>CyberClowns</strong> | Threat Intelligence: OpenCTI</p>
+            <p style="margin-top: 8px;">
+                <a href="https://github.com" target="_blank">Learn more</a> |
+                <a href="javascript:void(0)" onclick="openSettings()">Settings</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Display blocked URL
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const blockedUrl = params.get('url') || document.referrer || 'Unknown URL';
+
+            if (blockedUrl && blockedUrl !== 'Unknown URL') {
+                document.getElementById('blockedUrl').textContent = blockedUrl;
+            } else {
+                // Try to get from Chrome history or tab info
+                document.getElementById('blockedUrl').textContent = 'Malicious URL detected';
+            }
+        });
+
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'about:blank';
+            }
+        }
+
+        function openDashboard() {
+            chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    window.open(chrome.runtime.getURL('dashboard.html'), '_blank');
+                }
+            });
+        }
+
+        function reportFalsePositive() {
+            alert('Thank you for reporting. Please send details to: security@cyberclowns.local');
+            // In production: open a form or send telemetry
+        }
+
+        function openSettings() {
+            chrome.runtime.openOptionsPage();
+        }
+    </script>
+</body>
+</html>

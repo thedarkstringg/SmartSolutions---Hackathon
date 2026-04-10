@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberClowns Security Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif}
+        .dash{background:#111111;min-height:100vh;color:#fff;display:flex;flex-direction:column}
+        .nav{background:#111111;padding:14px 24px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222;position:sticky;top:0;z-index:100}
+        .logo{display:flex;align-items:center;gap:8px;margin-right:20px}
+        .logo-icon{width:32px;height:32px;border-radius:50%;background:#7c5cbf;display:flex;align-items:center;justify-content:center}
+        .logo-text{font-size:16px;font-weight:500;color:#fff}
+        .nav-tabs{display:flex;gap:4px}
+        .nav-tab{padding:6px 16px;border-radius:20px;font-size:13px;color:#888;cursor:pointer;border:none;background:transparent}
+        .nav-tab.active{background:#fff;color:#111;font-weight:500}
+        .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+        .nav-icon{width:32px;height:32px;border-radius:50%;background:#1e1e1e;display:flex;align-items:center;justify-content:center;cursor:pointer}
+        .avatar{width:32px;height:32px;border-radius:50%;background:#7c5cbf;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500}
+        .pages{flex:1;display:flex;flex-direction:column}
+        .page{display:none;flex:1;overflow-y:auto}
+        .page.active{display:flex;flex-direction:column}
+        .body{padding:24px;flex:1;display:flex;flex-direction:column}
+        .welcome{font-size:32px;font-weight:400;color:#888;margin-bottom:4px}
+        .welcome span{color:#fff}
+        .period-toggle{display:flex;gap:4px;background:#1e1e1e;padding:4px;border-radius:20px}
+        .period-btn{padding:5px 14px;border-radius:16px;font-size:12px;color:#888;cursor:pointer;border:none;background:transparent}
+        .period-btn.active{background:#fff;color:#111;font-weight:500}
+        .hero-row{display:grid;grid-template-columns:320px 1fr;gap:0;margin-top:20px}
+        .hero-left{padding-right:24px}
+        .total-label{font-size:12px;color:#666;margin-bottom:6px}
+        .total-amount{font-size:42px;font-weight:500;color:#fff;line-height:1}
+        .total-amount sup{font-size:18px;vertical-align:super}
+        .total-amount .cents{font-size:24px;color:#888}
+        .pct{color:#7c5cbf;font-size:13px;font-weight:500;margin-left:8px}
+        .threat-status{font-size:12px;color:#555;margin-top:8px;margin-bottom:16px}
+        .threat-status span{color:#888}
+        .status-safe{color:#4ecdc4}
+        .status-suspicious{color:#ffc107}
+        .status-phishing{color:#ff6b6b}
+        .action-btns{display:flex;gap:8px}
+        .btn-action{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;border:1px solid #333;background:#1e1e1e;color:#fff;transition:all 0.3s}
+        .btn-action:hover{background:#333;border-color:#555}
+        .btn-more{width:34px;height:34px;border-radius:50%;background:#1e1e1e;border:1px solid #333;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+        .chart-section{border-left:1px solid #222;padding-left:24px}
+        .bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}
+        .panel{background:#1a1a1a;border-radius:12px;padding:16px}
+        .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+        .panel-title{font-size:13px;font-weight:500;color:#fff;display:flex;align-items:center;gap:6px}
+        .panel-icon{width:20px;height:20px;border-radius:50%;background:#252525;display:flex;align-items:center;justify-content:center}
+        .legend-row{display:flex;gap:12px;margin-bottom:10px}
+        .legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#777}
+        .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .scan-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid #222}
+        .scan-row:last-child{border-bottom:none}
+        .scan-url{font-size:13px;color:#ddd;flex:1}
+        .scan-badge{padding:2px 8px;border-radius:10px;font-size:10px;flex-shrink:0}
+        .badge-phishing{background:#2a1a1a;color:#ff6b6b}
+        .badge-suspicious{background:#2a2410;color:#ffc107}
+        .badge-safe{background:#1a2a1a;color:#4ecdc4}
+        .scan-confidence{font-size:13px;font-weight:500;min-width:50px}
+        .conf-high{color:#ff6b6b}
+        .conf-medium{color:#ffc107}
+        .conf-low{color:#4ecdc4}
+        .stat-container{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+        .stat-card{background:#1a1a1a;border-radius:12px;padding:16px}
+        .stat-label{font-size:11px;color:#666;margin-bottom:8px}
+        .stat-value{font-size:28px;font-weight:500;color:#fff}
+        .stat-subtitle{font-size:11px;color:#888;margin-top:4px}
+        .table-container{background:#1a1a1a;border-radius:12px;padding:16px;margin-top:12px}
+        .data-table{width:100%;border-collapse:collapse;font-size:12px}
+        .data-table th{color:#666;font-weight:500;padding:8px;text-align:left;border-bottom:1px solid #222}
+        .data-table td{padding:8px;border-bottom:1px solid #222;color:#ddd}
+        .data-table tr:hover{background:#222}
+        .chart-wrap{position:relative;height:200px}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center}
+        .modal-overlay.active{display:flex}
+        .modal{background:#1a1a1a;border-radius:12px;padding:24px;max-width:500px;width:90%}
+        .modal-header{font-size:18px;font-weight:500;color:#fff;margin-bottom:16px}
+        .modal-input{width:100%;background:#111;border:1px solid #333;border-radius:8px;padding:10px;color:#fff;margin-bottom:12px}
+        .modal-btn{background:#7c5cbf;border:none;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:500;transition:all 0.3s}
+        .modal-btn:hover{background:#9970d0}
+        .close-modal{text-align:right;cursor:pointer;color:#888}
+    </style>
+</head>
+<body>
+
+<div class="dash">
+    <nav class="nav">
+        <div class="logo">
+            <div class="logo-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5" stroke="#fff" stroke-width="1.5"/><path d="M8 4v4l2 2" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </div>
+            <span class="logo-text">CyberClowns</span>
+        </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="setPage('dashboard')">Dashboard</button>
+            <button class="nav-tab" onclick="setPage('analytics')">Analytics</button>
+            <button class="nav-tab" onclick="setPage('activity')">Activity</button>
+            <button class="nav-tab" onclick="setPage('settings')">Settings</button>
+        </div>
+        <div class="nav-right">
+            <div class="nav-icon" onclick="showModal('search-modal')">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="#888" stroke-width="1.3"/><path d="M10 10l2 2" stroke="#888" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </div>
+            <div class="nav-icon" onclick="refreshData()">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="#888" stroke-width="1.3"/><path d="M7 2v2M12 7h-2" stroke="#888" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </div>
+            <div class="avatar" title="CyberClowns">CC</div>
+        </div>
+    </nav>
+
+    <div class="pages">
+        <!-- DASHBOARD PAGE -->
+        <div class="page active" id="dashboard-page">
+            <div class="body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between">
+                    <div class="welcome">Security Status</div>
+                    <div class="period-toggle">
+                        <button class="period-btn" onclick="setPeriod('today')">Today</button>
+                        <button class="period-btn active" onclick="setPeriod('week')">Week</button>
+                        <button class="period-btn" onclick="setPeriod('month')">Month</button>
+                    </div>
+                </div>
+
+                <div class="hero-row">
+                    <div class="hero-left">
+                        <div class="total-label" style="margin-top:16px">Scans analyzed</div>
+                        <div class="total-amount" id="totalScans">0<span class="cents">.0</span> <span class="pct" id="detectionRate">+0%</span></div>
+                        <div class="threat-status">Threats found: <span id="phishingCount" class="status-phishing">0</span> phishing</div>
+                        <div style="font-size:12px;color:#666;margin-bottom:16px">Suspicious: <span id="suspiciousCount" class="status-suspicious">0</span> | Safe: <span id="safeCount" class="status-safe">0</span></div>
+                        <div class="action-btns">
+                            <button class="btn-action" onclick="analyzeNewSite()">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M7 3l3 3-3 3" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>
+                                Analyze URL
+                            </button>
+                            <button class="btn-action" onclick="viewThreats()">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="#888" stroke-width="1.3"/><path d="M6 3v3l2 1" stroke="#888" stroke-width="1.2" stroke-linecap="round"/></svg>
+                                View Threats
+                            </button>
+                            <button class="btn-more" onclick="showModal('options-modal')">···</button>
+                        </div>
+                    </div>
+
+                    <div class="chart-section">
+                        <div style="display:flex;gap:0;height:160px;align-items:flex-end;position:relative">
+                            <div style="position:absolute;top:0;right:80px;background:#2a2a2a;border-radius:6px;padding:3px 8px;font-size:10px;color:#aaa">Distribution</div>
+                            <div style="position:absolute;top:8px;left:0;font-size:13px;color:#aaa" id="safePercent">0%</div>
+                            <div style="position:absolute;top:0;left:50%;font-size:13px;color:#fff" id="detectionPercent">0%</div>
+
+                            <div style="display:flex;align-items:flex-end;gap:3px;flex:1;height:120px;margin-top:36px">
+                                <div style="flex:1;background:#4ecdc4;border-radius:4px 4px 0 0;height:100%" id="safeBar"></div>
+                                <div style="display:flex;flex-direction:column;gap:0;flex:2;align-items:flex-end;height:100%">
+                                    <div style="flex:1"></div>
+                                    <div style="display:flex;align-items:flex-end;gap:2px;width:100%;height:80%" id="phishingBars"></div>
+                                </div>
+                                <div style="display:flex;align-items:flex-end;gap:2px;flex:1;height:100%" id="suspiciousBars"></div>
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:6px">
+                            <div style="display:flex;gap:16px">
+                                <div><div style="font-size:12px;color:#4ecdc4">✓ Safe <span style="color:#666" id="safeCount2">0</span></div></div>
+                                <div><div style="font-size:12px;color:#ffc107">⚠ Suspicious <span style="color:#666" id="suspiciousCount2">0</span></div></div>
+                                <div><div style="font-size:12px;color:#ff6b6b">✕ Phishing <span style="color:#666" id="phishingCount2">0</span></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <div class="panel-icon">📋</div>
+                                Recent Detections
+                            </div>
+                            <span style="cursor:pointer" onclick="setPage('activity')">→</span>
+                        </div>
+                        <div id="recentScansContainer"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <div class="panel-icon">📈</div>
+                                Detection Timeline
+                            </div>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div>Phishing</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#ffc107"></div>Suspicious</div>
+                            <div class="legend-item"><div class="legend-dot" style="background:#4ecdc4"></div>Safe</div>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <div class="panel-icon">🎯</div>
+                                Threat Distribution
+                            </div>
+                        </div>
+                        <div style="position:relative;height:140px;display:flex;align-items:center;justify-content:center">
+                            <canvas id="donutChart" width="140" height="140"></canvas>
+                        </div>
+                        <div style="display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:11px">
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <div style="width:10px;height:10px;border-radius:50%;background:#ff6b6b"></div>
+                                <span style="color:#ddd">Phishing</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <div style="width:10px;height:10px;border-radius:50%;background:#ffc107"></div>
+                                <span style="color:#ddd">Suspicious</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <div style="width:10px;height:10px;border-radius:50%;background:#4ecdc4"></div>
+                                <span style="color:#ddd">Safe</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANALYTICS PAGE -->
+        <div class="page" id="analytics-page">
+            <div class="body">
+                <div class="welcome">Analytics & Trends</div>
+
+                <div class="stat-container">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Scans</div>
+                        <div class="stat-value" id="statTotal">0</div>
+                        <div class="stat-subtitle">All time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Phishing Found</div>
+                        <div class="stat-value" id="statPhishing" style="color:#ff6b6b">0</div>
+                        <div class="stat-subtitle" id="statPhishingPct">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Suspicious Sites</div>
+                        <div class="stat-value" id="statSuspicious" style="color:#ffc107">0</div>
+                        <div class="stat-subtitle" id="statSuspiciousPct">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Confidence</div>
+                        <div class="stat-value" id="statAvgConf">0%</div>
+                        <div class="stat-subtitle">Score</div>
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span style="font-weight:500;color:#fff">Detection Rate Over Time</span>
+                        </div>
+                        <div class="chart-wrap">
+                            <canvas id="detectionRateChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span style="font-weight:500;color:#fff">Top Warning Triggers</span>
+                        </div>
+                        <div id="topWarningsContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTIVITY PAGE -->
+        <div class="page" id="activity-page">
+            <div class="body">
+                <div class="welcome">Recent Activity</div>
+
+                <div style="display:flex;gap:8px;margin:16px 0">
+                    <input type="text" id="filterUrl" placeholder="Filter by URL..." style="flex:1;background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:10px;color:#fff">
+                    <select id="filterVerdict" style="background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:10px;color:#fff">
+                        <option value="">All Verdicts</option>
+                        <option value="phishing">Phishing</option>
+                        <option value="suspicious">Suspicious</option>
+                        <option value="safe">Safe</option>
+                    </select>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>URL</th>
+                                <th>Verdict</th>
+                                <th>Confidence</th>
+                                <th>Response</th>
+                                <th>Warnings</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activityTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS PAGE -->
+        <div class="page" id="settings-page">
+            <div class="body">
+                <div class="welcome">Settings & Configuration</div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px">
+                    <div>
+                        <div style="font-size:14px;font-weight:500;color:#fff;margin-bottom:16px">General Settings</div>
+                        <div class="panel" style="padding:20px">
+                            <label style="display:block;margin-bottom:12px">
+                                <input type="checkbox" checked> Enable Real-time Analysis
+                            </label>
+                            <label style="display:block;margin-bottom:12px">
+                                <input type="checkbox" checked> Show Phishing Warnings
+                            </label>
+                            <label style="display:block;margin-bottom:12px">
+                                <input type="checkbox" checked> Auto-refresh Dashboard
+                            </label>
+                            <label style="display:block;margin-bottom:12px">
+                                <input type="checkbox"> Log to Splunk
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div style="font-size:14px;font-weight:500;color:#fff;margin-bottom:16px">System Info</div>
+                        <div class="panel" style="padding:20px">
+                            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #333">
+                                <span style="color:#888">Backend Status</span>
+                                <span id="backendStatus" style="color:#4ecdc4">Connected</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #333">
+                                <span style="color:#888">Extension Status</span>
+                                <span style="color:#4ecdc4">Active</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:8px 0">
+                                <span style="color:#888">Version</span>
+                                <span style="color:#ddd">1.0.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:24px">
+                    <button class="btn-action" onclick="exportData()" style="background:#1e1e1e;border:1px solid #333;padding:10px 20px">
+                        Export Metrics
+                    </button>
+                    <button class="btn-action" onclick="clearData()" style="background:#2a1a1a;border:1px solid #553333;padding:10px 20px;margin-left:8px">
+                        Clear All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="search-modal">
+    <div class="modal">
+        <div class="close-modal" onclick="closeModal('search-modal')">✕</div>
+        <div class="modal-header">Search URLs</div>
+        <input type="text" id="searchInput" class="modal-input" placeholder="Enter URL to analyze..." onkeypress="if(event.key==='Enter')analyzeCustomURL()">
+        <button class="modal-btn" style="width:100%" onclick="analyzeCustomURL()">Analyze</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="options-modal">
+    <div class="modal">
+        <div class="close-modal" onclick="closeModal('options-modal')">✕</div>
+        <div class="modal-header">Options</div>
+        <div style="color:#888;font-size:12px;line-height:1.8">
+            <div style="padding:8px 0;border-bottom:1px solid #333;cursor:pointer" onclick="exportData();closeModal('options-modal')">Export Data (JSON)</div>
+            <div style="padding:8px 0;border-bottom:1px solid #333;cursor:pointer" onclick="refreshData();closeModal('options-modal')">Force Refresh</div>
+            <div style="padding:8px 0;cursor:pointer;color:#ff6b6b" onclick="clearData();closeModal('options-modal')">Clear All Metrics</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="threat-modal">
+    <div class="modal">
+        <div class="close-modal" onclick="closeModal('threat-modal')">✕</div>
+        <div class="modal-header">Top Threats</div>
+        <div id="threatList"></div>
+    </div>
+</div>
+
+<script>
+let allMetrics = [];
+let allCharts = {};
+let currentPeriod = 'week';
+let currentPage = 'dashboard';
+
+// Initialize
+setInterval(loadMetrics, 3000);
+loadMetrics();
+
+//=== PAGE MANAGEMENT ===
+function setPage(page) {
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+
+    // Show selected page
+    document.getElementById(page + '-page').classList.add('active');
+    event.target.classList.add('active');
+    currentPage = page;
+
+    // Update based on page
+    if (page === 'analytics') updateAnalytics();
+    if (page === 'activity') updateActivityTable();
+}
+
+function setPeriod(period) {
+    currentPeriod = period;
+    event.target.parentNode.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    updateDashboard();
+}
+
+//=== DATA MANAGEMENT ===
+function loadMetrics() {
+    fetch('/api/metrics')
+        .then(r => r.json())
+        .then(data => {
+            allMetrics = Array.isArray(data) ? data : [];
+            if (currentPage === 'dashboard') updateDashboard();
+            if (currentPage === 'analytics') updateAnalytics();
+            if (currentPage === 'activity') updateActivityTable();
+        })
+        .catch(e => console.error('Failed to load metrics:', e));
+}
+
+function refreshData() {
+    loadMetrics();
+    showNotification('Data refreshed');
+}
+
+//=== DASHBOARD PAGE ===
+function updateDashboard() {
+    if (!allMetrics || allMetrics.length === 0) {
+        showEmptyState();
+        return;
+    }
+
+    const phishing = allMetrics.filter(m => m.verdict === 'phishing').length;
+    const suspicious = allMetrics.filter(m => m.verdict === 'suspicious').length;
+    const safe = allMetrics.filter(m => m.verdict === 'safe').length;
+    const total = allMetrics.length;
+    const detectionRate = total > 0 ? ((phishing + suspicious) / total * 100).toFixed(1) : 0;
+
+    // Update KPIs
+    updateText('totalScans', `${total}<span class="cents">.0</span> <span class="pct">+${detectionRate}%</span>`, true);
+    updateText('detectionRate', `+${detectionRate}%`);
+    updateText('phishingCount', phishing);
+    updateText('suspiciousCount', suspicious);
+    updateText('safeCount', safe);
+    updateText('phishingCount2', phishing);
+    updateText('suspiciousCount2', suspicious);
+    updateText('safeCount2', safe);
+
+    const safePercent = total > 0 ? ((safe / total) * 100).toFixed(0) : 0;
+    const detectionPercent = total > 0 ? (((phishing + suspicious) / total) * 100).toFixed(0) : 0;
+    updateText('safePercent', `${safePercent}%`);
+    updateText('detectionPercent', `${detectionPercent}%`);
+
+    buildChartBars(phishing, suspicious, safe);
+
+    // Recent scans
+    const recent = allMetrics.slice(-5).reverse();
+    const container = document.getElementById('recentScansContainer');
+    container.innerHTML = recent.map(m => {
+        const badge = m.verdict === 'phishing' ? 'badge-phishing' : m.verdict === 'suspicious' ? 'badge-suspicious' : 'badge-safe';
+        const conf = m.confidence_score > 0.7 ? 'conf-high' : m.confidence_score > 0.4 ? 'conf-medium' : 'conf-low';
+        const url = (m.url || '').substring(0, 40);
+        return `<div class="scan-row"><div class="scan-url">${url}</div><span class="scan-badge ${badge}">${(m.verdict || '?').toUpperCase()}</span><span class="scan-confidence ${conf}">${((m.confidence_score || 0) * 100).toFixed(0)}%</span></div>`;
+    }).join('');
+
+    updateTimelineChart();
+    updateDonutChart(phishing, suspicious, safe);
+}
+
+function updateTimelineChart() {
+    const ctx = document.getElementById('lineChart');
+    if (!ctx) return;
+
+    const hourBuckets = Array(24).fill(0).map((_, i) => ({phishing: 0, suspicious: 0, safe: 0}));
+    allMetrics.forEach(m => {
+        try {
+            const time = new Date(m.timestamp || Date.now());
+            const hour = time.getHours();
+            if (m.verdict === 'phishing') hourBuckets[hour].phishing++;
+            else if (m.verdict === 'suspicious') hourBuckets[hour].suspicious++;
+            else hourBuckets[hour].safe++;
+        } catch (e) {}
+    });
+
+    if (allCharts.lineChart) allCharts.lineChart.destroy();
+    allCharts.lineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: hourBuckets.map((_, i) => `${i}h`),
+            datasets: [
+                {label: 'Phishing', data: hourBuckets.map(b => b.phishing), borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.08)', tension: 0.4, fill: true, borderWidth: 2, pointRadius: 2},
+                {label: 'Suspicious', data: hourBuckets.map(b => b.suspicious), borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.08)', tension: 0.4, fill: true, borderWidth: 2, pointRadius: 2},
+                {label: 'Safe', data: hourBuckets.map(b => b.safe), borderColor: '#4ecdc4', backgroundColor: 'rgba(78,205,196,0.08)', tension: 0.4, fill: true, borderWidth: 1, pointRadius: 1}
+            ]
+        },
+        options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {x: {display: false}, y: {display: false, grid: {display: false}}}}
+    });
+}
+
+function updateDonutChart(phishing, suspicious, safe) {
+    const ctx = document.getElementById('donutChart');
+    if (!ctx) return;
+    if (allCharts.donutChart) allCharts.donutChart.destroy();
+    allCharts.donutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {labels: ['Phishing', 'Suspicious', 'Safe'], datasets: [{data: [phishing, suspicious, safe], backgroundColor: ['#ff6b6b', '#ffc107', '#4ecdc4'], borderWidth: 0}]},
+        options: {responsive: false, plugins: {legend: {display: false}}, cutout: '65%'}
+    });
+}
+
+function buildChartBars(phishing, suspicious, safe) {
+    const total = phishing + suspicious + safe || 1;
+    const phishingBars = document.getElementById('phishingBars');
+    phishingBars.innerHTML = '';
+    for (let i = 0; i < 12; i++) {
+        const height = Math.max(5, (phishing / total) * 100 * 0.8);
+        const bar = document.createElement('div');
+        bar.style.cssText = `flex:1;background:#ff6b6b;border-radius:2px 2px 0 0;height:${height}%;opacity:${0.4 + (i/12)*0.6}`;
+        phishingBars.appendChild(bar);
+    }
+
+    const suspiciousBars = document.getElementById('suspiciousBars');
+    suspiciousBars.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+        const height = Math.max(5, (suspicious / total) * 100 * 0.7);
+        const bar = document.createElement('div');
+        bar.style.cssText = `flex:1;background:#ffc107;border-radius:2px 2px 0 0;height:${height}%`;
+        suspiciousBars.appendChild(bar);
+    }
+}
+
+function showEmptyState() {
+    updateText('totalScans', '0<span class="cents">.0</span> <span class="pct">+0%</span>', true);
+    ['phishingCount', 'suspiciousCount', 'safeCount', 'phishingCount2', 'suspiciousCount2', 'safeCount2'].forEach(id => updateText(id, '0'));
+    document.getElementById('recentScansContainer').innerHTML = '<p style="color:#666;text-align:center;padding:20px">No scans yet. Visit websites with extension enabled.</p>';
+}
+
+//=== ANALYTICS PAGE ===
+function updateAnalytics() {
+    const total = allMetrics.length;
+    const phishing = allMetrics.filter(m => m.verdict === 'phishing').length;
+    const suspicious = allMetrics.filter(m => m.verdict === 'suspicious').length;
+    const avgConf = total > 0 ? (allMetrics.reduce((s, m) => s + (m.confidence_score || 0), 0) / total * 100).toFixed(0) : 0;
+
+    updateText('statTotal', total);
+    updateText('statPhishing', phishing);
+    updateText('statSuspicious', suspicious);
+    updateText('statPhishingPct', `${total > 0 ? (phishing/total*100).toFixed(1) : 0}%`);
+    updateText('statSuspiciousPct', `${total > 0 ? (suspicious/total*100).toFixed(1) : 0}%`);
+    updateText('statAvgConf', avgConf + '%');
+
+    // Top warnings
+    const warnings = {};
+    allMetrics.forEach(m => {
+        (m.warnings || []).forEach(w => {
+            warnings[w] = (warnings[w] || 0) + 1;
+        });
+    });
+    const topWarnings = Object.entries(warnings).sort((a,b) => b[1]-a[1]).slice(0,5);
+    const container = document.getElementById('topWarningsContainer');
+    container.innerHTML = topWarnings.map(([w, c]) => `<div style="padding:8px 0;border-bottom:1px solid #333"><span style="color:#ddd">${w}</span><span style="float:right;color:#7c5cbf">${c}</span></div>`).join('');
+
+    updateDetectionRateChart();
+}
+
+function updateDetectionRateChart() {
+    const ctx = document.getElementById('detectionRateChart');
+    if (!ctx) return;
+
+    const dayBuckets = {};
+    allMetrics.forEach(m => {
+        const date = new Date(m.timestamp || Date.now()).toLocaleDateString();
+        if (!dayBuckets[date]) dayBuckets[date] = {phishing: 0, total: 0};
+        dayBuckets[date].total++;
+        if (m.verdict === 'phishing') dayBuckets[date].phishing++;
+    });
+
+    const labels = Object.keys(dayBuckets).slice(-7);
+    const rates = labels.map(d => dayBuckets[d].phishing / dayBuckets[d].total * 100);
+
+    if (allCharts.detectionRateChart) allCharts.detectionRateChart.destroy();
+    allCharts.detectionRateChart = new Chart(ctx, {
+        type: 'bar',
+        data: {labels, datasets: [{label: 'Phishing Rate %', data: rates, backgroundColor: '#7c5cbf', borderRadius: 4}]},
+        options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, max: 100}}}
+    });
+}
+
+//=== ACTIVITY PAGE ===
+function updateActivityTable() {
+    const filterUrl = document.getElementById('filterUrl')?.value || '';
+    const filterVerdict = document.getElementById('filterVerdict')?.value || '';
+
+    let filtered = allMetrics;
+    if (filterUrl) filtered = filtered.filter(m => m.url.includes(filterUrl));
+    if (filterVerdict) filtered = filtered.filter(m => m.verdict === filterVerdict);
+
+    const tbody = document.getElementById('activityTableBody');
+    tbody.innerHTML = filtered.slice().reverse().slice(0, 50).map(m => {
+        const badge = m.verdict === 'phishing' ? 'badge-phishing' : m.verdict === 'suspicious' ? 'badge-suspicious' : 'badge-safe';
+        const time = new Date(m.timestamp).toLocaleString();
+        return `<tr><td>${time}</td><td style="max-width:250px">${m.url.substring(0, 30)}</td><td><span class="scan-badge ${badge}">${m.verdict.toUpperCase()}</span></td><td>${(m.confidence_score*100).toFixed(0)}%</td><td>${m.response_time_ms.toFixed(0)}ms</td><td>${(m.warnings || []).length}</td></tr>`;
+    }).join('');
+}
+
+//=== UTILITY FUNCTIONS ===
+function updateText(id, text, html = false) {
+    const el = document.getElementById(id);
+    if (el) html ? el.innerHTML = text : el.textContent = text;
+}
+
+function showNotification(msg) {
+    console.log('[Notification]', msg);
+}
+
+function analyzeNewSite() {
+    showModal('search-modal');
+}
+
+function analyzeCustomURL() {
+    const url = document.getElementById('searchInput').value.trim();
+    if (!url) { alert('Enter a URL'); return; }
+    console.log('Analyzing:', url);
+    showNotification('Analysis queued: ' + url);
+    closeModal('search-modal');
+}
+
+function viewThreats() {
+    const threats = allMetrics.filter(m => m.verdict === 'phishing').slice(-10).reverse();
+    document.getElementById('threatList').innerHTML = threats.map(m => `<div style="padding:8px 0;border-bottom:1px solid #333"><strong>${m.url}</strong><br><span style="color:#ffc107">${(m.confidence_score*100).toFixed(0)}% confidence</span></div>`).join('');
+    showModal('threat-modal');
+}
+
+function exportData() {
+    const json = JSON.stringify(allMetrics, null, 2);
+    const blob = new Blob([json], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cyberclowns_metrics.json';
+    a.click();
+    showNotification('Data exported');
+}
+
+function clearData() {
+    if (confirm('Clear all metrics? This cannot be undone.')) {
+        allMetrics = [];
+        showNotification('Data cleared');
+        updateDashboard();
+    }
+}
+
+function showModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Add filter listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const filterUrl = document.getElementById('filterUrl');
+    const filterVerdict = document.getElementById('filterVerdict');
+    if (filterUrl) filterUrl.addEventListener('change', updateActivityTable);
+    if (filterVerdict) filterVerdict.addEventListener('change', updateActivityTable);
+});
+</script>
+
+</body>
+</html>

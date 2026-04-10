@@ -7,3 +7,5 @@ Pillow
 requests
 playwright
 python-multipart
+scikit-learn
+PyJWT

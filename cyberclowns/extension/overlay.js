@@ -325,6 +325,10 @@
     button1.textContent = buttonText1;
     button1.addEventListener("click", () => {
       if (verdict === "phishing") {
+        // 🆕 Log to Splunk before leaving
+        if (typeof ExtensionSplunkLogger !== 'undefined') {
+          ExtensionSplunkLogger.logWarningInteraction(window.location.href, verdict, "leave");
+        }
         handleLeaveClick();
       } else {
         chrome.runtime.sendMessage({ type: "OPEN_POPUP" });
@@ -335,6 +339,10 @@
     button2.className = "overlay-button secondary";
     button2.textContent = buttonText2;
     button2.addEventListener("click", () => {
+      // 🆕 Log dismiss action to Splunk
+      if (typeof ExtensionSplunkLogger !== 'undefined') {
+        ExtensionSplunkLogger.logWarningInteraction(window.location.href, verdict, "dismiss");
+      }
       if (verdict === "phishing") {
         markAsDismissed();
         removeWarningOverlay();
@@ -408,6 +416,10 @@
     const verdict = result.verdict;
 
     if (verdict === "phishing" || verdict === "suspicious") {
+      // 🆕 Log warning shown to Splunk
+      if (typeof ExtensionSplunkLogger !== 'undefined') {
+        ExtensionSplunkLogger.logWarningShown(window.location.href, verdict);
+      }
       createWarningOverlay(result);
     } else {
       removeWarningOverlay();

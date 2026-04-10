@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initializePopup();
   rescanButton.addEventListener("click", handleRescan);
   retryButton.addEventListener("click", handleRetry);
+  document.getElementById("analytics-button").addEventListener("click", openAnalyticsDashboard);
 });
 
 async function initializePopup() {
@@ -263,4 +264,9 @@ function handleRetry() {
   pollsMissed = 0;
   clearTimeout(pollTimeout);
   pollTimeout = setTimeout(loadResult, 1000);
+}
+
+// === ANALYTICS DASHBOARD ===
+function openAnalyticsDashboard() {
+  chrome.tabs.create({ url: "http://localhost:8000/dashboard" });
 }

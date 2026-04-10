@@ -33,6 +33,13 @@ if [ ! -f data/known_hashes.json ]; then
     echo ""
 fi
 
+# Check for ML model
+if [ ! -f models/phishing_detector.pkl ]; then
+    echo "🤖 Building ML phishing detector model..."
+    python scripts/build_ml_model.py
+    echo ""
+fi
+
 # Check for dependencies
 if ! command -v uvicorn &> /dev/null; then
     echo "❌ uvicorn not found! Install dependencies:"
@@ -47,3 +54,4 @@ echo ""
 
 # Start the server
 uvicorn main:app --reload --port 8000
+

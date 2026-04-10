@@ -7,10 +7,13 @@
     "activeTab",
     "scripting",
     "storage",
-    "tabs"
+    "tabs",
+    "webRequest",
+    "webNavigation"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "http://20.244.15.36:8080/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -18,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["content.js", "overlay.js"],
+      "js": ["splunk_logger.js", "content.js", "overlay.js"],
       "run_at": "document_idle"
     }
   ],
@@ -28,8 +31,9 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["demo/demo_mode.js", "demo/demo_dashboard.html", "test_page/phishing_demo.html"],
+      "resources": ["demo/demo_mode.js", "demo/demo_dashboard.html", "test_page/phishing_demo.html", "onboarding.html", "blocked.html"],
       "matches": ["<all_urls>"]
     }
   ]
 }
+

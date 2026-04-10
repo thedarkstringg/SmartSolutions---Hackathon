@@ -38,6 +38,13 @@ if not exist data\known_hashes.json (
     echo.
 )
 
+REM Check for ML model
+if not exist models\phishing_detector.pkl (
+    echo 🤖 Building ML phishing detector model...
+    python scripts\build_ml_model.py
+    echo.
+)
+
 REM Check for uvicorn
 where uvicorn >nul 2>nul
 if !errorlevel! neq 0 (

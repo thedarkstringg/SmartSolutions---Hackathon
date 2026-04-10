@@ -65,6 +65,27 @@ body {
   box-shadow: 0 0 8px rgba(213, 0, 0, 0.6);
 }
 
+/* === ANALYTICS BUTTON === */
+.analytics-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 4px 8px;
+  border-radius: 6px;
+  hover-color: #4ecdc4;
+}
+
+.analytics-button:hover {
+  background-color: rgba(78, 205, 196, 0.2);
+  transform: scale(1.1);
+}
+
+.analytics-button:active {
+  transform: scale(0.95);
+}
+
 /* === LABELS === */
 .label {
   font-size: 10px;

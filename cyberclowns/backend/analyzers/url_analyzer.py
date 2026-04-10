@@ -4,12 +4,19 @@ import json
 import re
 from dotenv import load_dotenv
 import logging
+from pathlib import Path
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from ml_detector import PhishingMLDetector
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ml_detector = PhishingMLDetector.get_instance()
 
 
 def extract_url_features(url: str) -> dict:
@@ -125,7 +132,8 @@ async def analyze_url(url: str) -> dict:
     """
     Analyze URL for phishing indicators using hybrid approach:
     1. Fast local rule-based analysis
-    2. Optional Gemini AI analysis if rule score is moderate
+    2. ML model classification
+    3. Optional Gemini AI analysis if rule score is moderate
 
     Returns dict with score, indicators, features, and metadata
     """
@@ -137,10 +145,27 @@ async def analyze_url(url: str) -> dict:
         indicators = []
         gemini_called = False
         gemini_score = None
+        ml_score = None
 
-        # Step 2: Only call Gemini if rule_score warrants it
+        # Step 2: Get ML model prediction
+        try:
+            ml_score = ml_detector.predict(features)
+            logger.info(f"ML score for {url}: {ml_score:.2f}")
+        except Exception as e:
+            logger.warning(f"ML prediction failed: {e}")
+            ml_score = None
+
+        # Step 3: Blend scores intelligently
+        # If we have both rule and ML scores, use both
+        if ml_score is not None:
+            # Combine: 50% rule-based, 50% ML
+            blended_score = (rule_score * 0.5) + (ml_score * 0.5)
+        else:
+            blended_score = rule_score
+
+        # Step 4: Only call Gemini if score is moderate
         # Skip if very high confidence (>0.7 already phishing) or very low (<0.1 definitely safe)
-        if 0.1 <= rule_score <= 0.7 and GEMINI_API_KEY:
+        if 0.1 <= blended_score <= 0.7 and GEMINI_API_KEY:
             try:
                 gemini_called = True
                 genai.configure(api_key=GEMINI_API_KEY)
@@ -167,18 +192,20 @@ URL features detected: {json.dumps(features)}"""
                     response_text = response_text.strip()
 
                 result = json.loads(response_text)
-                gemini_score = float(result.get("score", rule_score))
+                gemini_score = float(result.get("score", blended_score))
                 indicators = result.get("indicators", [])
 
-                # Blend scores: 70% Gemini, 30% rule-based
-                final_score = (gemini_score * 0.7) + (rule_score * 0.3)
+                # Final blend: 40% Gemini, 30% rule, 30% ML
+                final_score = (gemini_score * 0.4) + (rule_score * 0.3)
+                if ml_score is not None:
+                    final_score = (gemini_score * 0.4) + (rule_score * 0.2) + (ml_score * 0.4)
 
             except Exception as e:
                 logger.warning(f"Gemini analysis failed: {e}")
-                final_score = rule_score
+                final_score = blended_score
                 indicators = features.get("suspicious_keywords", [])
         else:
-            final_score = rule_score
+            final_score = blended_score
             # Use features as indicators if no Gemini call
             if features["has_ip_address"]:
                 indicators.append("URL contains IP address instead of domain")
@@ -196,6 +223,7 @@ URL features detected: {json.dumps(features)}"""
             "indicators": indicators,
             "features": features,
             "rule_score": round(rule_score, 2),
+            "ml_score": round(ml_score, 2) if ml_score else None,
             "gemini_score": round(gemini_score, 2) if gemini_score else None,
             "gemini_called": gemini_called
         }
@@ -207,6 +235,7 @@ URL features detected: {json.dumps(features)}"""
             "indicators": [f"Analysis error: {str(e)}"],
             "features": {},
             "rule_score": 0.5,
+            "ml_score": None,
             "gemini_score": None,
             "gemini_called": False
         }
