@@ -4,7 +4,7 @@
 // @ts-check
 
 // Backend configuration
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "http://195.238.122.179:8000";
 
 // OpenCTI configuration (Threat Intelligence Integration)
 const OPENCTI_URL = "http://20.244.15.36:8080/graphql";

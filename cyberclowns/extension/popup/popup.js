@@ -308,7 +308,7 @@ function handleLogout() {
 
 // === ANALYTICS DASHBOARD ===
 function openAnalyticsDashboard() {
-  chrome.tabs.create({ url: "http://localhost:8000/dashboard" });
+  chrome.tabs.create({ url: "http://195.238.122.179:8000/dashboard.html" });
 }
 
 // === MENU & PANEL MANAGEMENT ===
