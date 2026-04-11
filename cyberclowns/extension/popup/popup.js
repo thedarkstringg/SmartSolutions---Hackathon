@@ -419,15 +419,26 @@ function openDetailsModal() {
   const detailsContent = document.getElementById("details-content");
   const warnings = window.currentWarnings || [];
 
+  // Check if there are any warnings other than the known safe ones
+  const safeWarnings = ["high external resources", "javascript obfuscation"];
+  const hasCriticalWarnings = warnings.some(
+    (w) => !safeWarnings.some((safe) => w.toLowerCase().includes(safe))
+  );
+
   // Map warnings to severity levels
   function getWarningSeverity(warning) {
     const lowerWarning = warning.toLowerCase();
-    if (lowerWarning.includes("high external resources")) {
-      return "WARNING";
-    } else if (lowerWarning.includes("javascript obfuscation")) {
-      return "SUSPICIOUS";
+
+    // If there are critical warnings, only mark as suspicious if it's one of the safe types
+    if (hasCriticalWarnings) {
+      if (lowerWarning.includes("high external resources") || lowerWarning.includes("javascript obfuscation")) {
+        return "SUSPICIOUS";
+      } else {
+        return "CRITICAL";
+      }
     } else {
-      return "CRITICAL";
+      // Only safe warnings exist, mark them as suspicious
+      return "SUSPICIOUS";
     }
   }
 
@@ -437,12 +448,9 @@ function openDetailsModal() {
     detailsContent.innerHTML = warnings
       .map((warning) => {
         const severity = getWarningSeverity(warning);
-        let badgeColor = "#ffc107"; // yellow for warning
+        let badgeColor = "#ffc107"; // yellow for suspicious
         let textColor = "#000";
-        if (severity === "SUSPICIOUS") {
-          badgeColor = "#ffc107";
-          textColor = "#000";
-        } else if (severity === "CRITICAL") {
+        if (severity === "CRITICAL") {
           badgeColor = "#ff6b6b";
           textColor = "#fff";
         }
