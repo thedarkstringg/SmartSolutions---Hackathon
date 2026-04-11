@@ -33,7 +33,8 @@ async function checkUrlInOpenCTI(targetUrl) {
   const safeDomains = [
     'localhost', '127.0.0.1', 'chrome://', 'about:',
     'google.com', 'github.com', 'microsoft.com', 'apple.com',
-    'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com'
+    'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
+    'lms.aztu.edu.az', 'aztu.edu.az', 'azintelecom.az'
   ];
 
   try {
@@ -301,7 +302,8 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       'google.com', 'github.com', 'microsoft.com', 'apple.com',
       'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
       'linkedin.com', 'reddit.com', 'stackoverflow.com', 'amazon.com',
-      'cloudflare.com', 'aws.amazon.com'
+      'cloudflare.com', 'aws.amazon.com',
+      'lms.aztu.edu.az', 'aztu.edu.az', 'azintelecom.az'
     ];
 
     // Check if URL is in whitelist
