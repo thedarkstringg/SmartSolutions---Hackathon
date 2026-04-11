@@ -415,22 +415,43 @@ function openDetailsModal() {
     document.body.appendChild(modal);
   }
 
-  // Populate warning details
+  // Populate warning details with custom severity mapping
   const detailsContent = document.getElementById("details-content");
   const warnings = window.currentWarnings || [];
-  const warningDetails = window.currentWarningDetails || {};
+
+  // Map warnings to severity levels
+  function getWarningSeverity(warning) {
+    const lowerWarning = warning.toLowerCase();
+    if (lowerWarning.includes("high external resources")) {
+      return "WARNING";
+    } else if (lowerWarning.includes("javascript obfuscation")) {
+      return "SUSPICIOUS";
+    } else {
+      return "CRITICAL";
+    }
+  }
 
   if (warnings.length === 0) {
     detailsContent.innerHTML = "<p>No warning details available.</p>";
   } else {
     detailsContent.innerHTML = warnings
       .map((warning) => {
-        const severity = warningDetails[warning] || "WARNING";
+        const severity = getWarningSeverity(warning);
+        let badgeColor = "#ffc107"; // yellow for warning
+        let textColor = "#000";
+        if (severity === "SUSPICIOUS") {
+          badgeColor = "#ffc107";
+          textColor = "#000";
+        } else if (severity === "CRITICAL") {
+          badgeColor = "#ff6b6b";
+          textColor = "#fff";
+        }
+
         return `
           <div style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #ddd;">
             <div style="font-weight: 500; margin-bottom: 4px;">${warning}</div>
             <div style="font-size: 12px; color: #666;">
-              Severity: <span class="severity-badge severity-${severity.toLowerCase()}">${severity}</span>
+              Severity: <span class="severity-badge" style="background-color: ${badgeColor}; color: ${textColor}; padding: 3px 10px; border-radius: 4px; font-weight: 500;">${severity}</span>
             </div>
           </div>
         `;
