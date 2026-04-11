@@ -496,9 +496,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             );
           }
 
-          // Redirect to blocked page
+          // Redirect to blocked page with threat details
           const url = payload.url || 'Unknown URL';
-          const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?url=${encodeURIComponent(url)}`;
+          const params = new URLSearchParams({
+            url: url,
+            warnings: warnings.join('|'),
+            confidence: result.confidence_score || 0.8
+          });
+          const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?${params.toString()}`;
           chrome.tabs.update(tabId, { url: blockPageUrl });
           return;
         }
