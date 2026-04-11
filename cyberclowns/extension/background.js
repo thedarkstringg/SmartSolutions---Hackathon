@@ -470,9 +470,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 🔴 CHECK FOR CRITICAL WARNINGS AND BLOCK IF DETECTED
         const warnings = result.warnings || [];
-        const safeWarnings = ["high external resources", "javascript obfuscation"];
+        const suspiciousWarnings = [
+          "high external resources",
+          "javascript obfuscation",
+          "suspicious css"
+        ];
         const hasCriticalWarnings = warnings.some(
-          (w) => !safeWarnings.some((safe) => w.toLowerCase().includes(safe))
+          (w) => !suspiciousWarnings.some((safe) => w.toLowerCase().includes(safe))
         );
 
         if (hasCriticalWarnings && warnings.length > 0) {

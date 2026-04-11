@@ -420,9 +420,13 @@ function openDetailsModal() {
   const warnings = window.currentWarnings || [];
 
   // Check if there are any warnings other than the known safe ones
-  const safeWarnings = ["high external resources", "javascript obfuscation"];
+  const suspiciousWarnings = [
+    "high external resources",
+    "javascript obfuscation",
+    "suspicious css"
+  ];
   const hasCriticalWarnings = warnings.some(
-    (w) => !safeWarnings.some((safe) => w.toLowerCase().includes(safe))
+    (w) => !suspiciousWarnings.some((suspicious) => w.toLowerCase().includes(suspicious))
   );
 
   // Map warnings to severity levels
