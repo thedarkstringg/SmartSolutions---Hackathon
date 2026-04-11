@@ -319,6 +319,24 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
     updateBadge(details.tabId, "analyzing");
 
     try {
+      // === EARLY WHITELIST CHECK ===
+      const whitelist = [
+        'localhost', '127.0.0.1', '192.168', '10.0',
+        'chrome://', 'about:',
+        'google.com', 'github.com', 'microsoft.com', 'apple.com',
+        'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
+        'linkedin.com', 'reddit.com', 'stackoverflow.com', 'amazon.com',
+        'cloudflare.com', 'aws.amazon.com',
+        'lms.aztu.edu.az', 'aztu.edu.az', 'azintelecom.az',
+        '195.238.122.179'
+      ];
+
+      if (whitelist.some(domain => url.includes(domain))) {
+        console.log(`[✅ WHITELISTED] ${url} - Marking as SAFE (100% confidence)`);
+        updateBadge(details.tabId, "safe");
+        return;
+      }
+
       // === PARALLEL THREAT CHECKS ===
       // 1. Fast VirusTotal check for immediate blocking
       console.log(`[VirusTotal] Fast check...`);
@@ -358,38 +376,21 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         updateBadge(details.tabId, "suspicious");
       }
 
-      // 3. Trigger backend ML analysis for deeper analysis (skip for whitelisted domains)
-      const whitelist = [
-        'localhost', '127.0.0.1', '192.168', '10.0',
-        'chrome://', 'about:',
-        'google.com', 'github.com', 'microsoft.com', 'apple.com',
-        'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
-        'linkedin.com', 'reddit.com', 'stackoverflow.com', 'amazon.com',
-        'cloudflare.com', 'aws.amazon.com',
-        'lms.aztu.edu.az', 'aztu.edu.az', 'azintelecom.az',
-        '195.238.122.179'
-      ];
+      // 3. Trigger backend ML analysis for deeper analysis
+      console.log(`[Backend] Starting ML analysis...`);
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: details.tabId },
+          files: ["content.js"],
+        });
 
-      const isWhitelisted = whitelist.some(domain => url.includes(domain));
-
-      if (!isWhitelisted) {
-        console.log(`[Backend] Starting ML analysis...`);
-        try {
-          await chrome.scripting.executeScript({
-            target: { tabId: details.tabId },
-            files: ["content.js"],
-          });
-
-          // Send message to content script to trigger analysis
-          chrome.tabs.sendMessage(details.tabId, {
-            type: "ANALYZE_PAGE",
-            url: url,
-          }).catch(err => console.log("[Backend] Content script not ready yet, will auto-trigger on page ready"));
-        } catch (error) {
-          console.log("[Backend] Script injection skipped:", error.message);
-        }
-      } else {
-        console.log(`[✅ WHITELISTED] Skipping ML analysis for: ${url}`);
+        // Send message to content script to trigger analysis
+        chrome.tabs.sendMessage(details.tabId, {
+          type: "ANALYZE_PAGE",
+          url: url,
+        }).catch(err => console.log("[Backend] Content script not ready yet, will auto-trigger on page ready"));
+      } catch (error) {
+        console.log("[Backend] Script injection skipped:", error.message);
       }
 
       // Default to safe if nothing flagged it
