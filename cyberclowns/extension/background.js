@@ -468,7 +468,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           [tabId.toString()]: result,
         });
 
-        // Send overlay message to the tab's content script
+        // 🔴 CHECK FOR CRITICAL WARNINGS AND BLOCK IF DETECTED
+        const warnings = result.warnings || [];
+        const safeWarnings = ["high external resources", "javascript obfuscation"];
+        const hasCriticalWarnings = warnings.some(
+          (w) => !safeWarnings.some((safe) => w.toLowerCase().includes(safe))
+        );
+
+        if (hasCriticalWarnings && warnings.length > 0) {
+          console.log(`\n🛑 BLOCKING URL - CRITICAL WARNINGS DETECTED: ${warnings.join(', ')}`);
+          updateBadge(tabId, "phishing");
+
+          // Log to Splunk
+          if (typeof ExtensionSplunkLogger !== 'undefined') {
+            ExtensionSplunkLogger.logPhishingDetection(
+              'phishing',
+              tabId.toString(),
+              result.confidence_score || 0.8,
+              warnings,
+              result.url_score || 0,
+              result.visual_score || 0,
+              result.behavior_score || 0
+            );
+          }
+
+          // Redirect to blocked page
+          const url = payload.url || 'Unknown URL';
+          const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?url=${encodeURIComponent(url)}`;
+          chrome.tabs.update(tabId, { url: blockPageUrl });
+          return;
+        }
+
+        // Send overlay message to the tab's content script (only if not blocked)
         try {
           chrome.tabs.sendMessage(tabId, {
             type: "SHOW_OVERLAY",

@@ -787,3 +787,31 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #888888;
 }
+
+/* === WARNING SEVERITY BADGES === */
+.warning-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.severity-critical {
+  background-color: #ff6b6b;
+  color: #ffffff;
+}
+
+.severity-suspicious {
+  background-color: #ffc107;
+  color: #000000;
+  font-weight: 600;
+}
+
+.severity-warning {
+  background-color: #ffc107;
+  color: #000000;
+  font-weight: 600;
+}
