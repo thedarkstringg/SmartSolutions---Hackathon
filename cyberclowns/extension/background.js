@@ -490,44 +490,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           [tabId.toString()]: result,
         });
 
-        // 🔴 CHECK FOR CRITICAL WARNINGS AND BLOCK IF DETECTED
-        const warnings = result.warnings || [];
-        const suspiciousWarnings = [
-          "high external resources",
-          "javascript obfuscation",
-          "suspicious css"
+        // Check if URL is whitelisted - don't block whitelisted domains
+        const whitelist = [
+          'localhost', '127.0.0.1', '192.168', '10.0',
+          'chrome://', 'about:',
+          'google.com', 'github.com', 'microsoft.com', 'apple.com',
+          'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com',
+          'linkedin.com', 'reddit.com', 'stackoverflow.com', 'amazon.com',
+          'cloudflare.com', 'aws.amazon.com',
+          'lms.aztu.edu.az', 'aztu.edu.az', 'azintelecom.az',
+          '195.238.122.179'
         ];
-        const hasCriticalWarnings = warnings.some(
-          (w) => !suspiciousWarnings.some((safe) => w.toLowerCase().includes(safe))
-        );
 
-        if (hasCriticalWarnings && warnings.length > 0) {
-          console.log(`\n🛑 BLOCKING URL - CRITICAL WARNINGS DETECTED: ${warnings.join(', ')}`);
-          updateBadge(tabId, "phishing");
+        const isWhitelisted = whitelist.some(domain => payload.url.includes(domain));
 
-          // Log to Splunk
-          if (typeof ExtensionSplunkLogger !== 'undefined') {
-            ExtensionSplunkLogger.logPhishingDetection(
-              'phishing',
-              tabId.toString(),
-              result.confidence_score || 0.8,
-              warnings,
-              result.url_score || 0,
-              result.visual_score || 0,
-              result.behavior_score || 0
-            );
-          }
-
-          // Redirect to blocked page with threat details
-          const url = payload.url || 'Unknown URL';
-          const params = new URLSearchParams({
-            url: url,
-            warnings: warnings.join('|'),
-            confidence: result.confidence_score || 0.8
+        if (isWhitelisted) {
+          console.log(`[✅ WHITELISTED] ${payload.url} - Ignoring warnings, marking as SAFE`);
+          // Override result to mark as safe
+          result.verdict = 'safe';
+          result.confidence_score = 1.0;
+          result.warnings = [];
+          analysisCache.set(tabId, result);
+          await chrome.storage.local.set({
+            [tabId.toString()]: result,
           });
-          const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?${params.toString()}`;
-          chrome.tabs.update(tabId, { url: blockPageUrl });
-          return;
+          updateBadge(tabId, "safe");
+        } else {
+          // 🔴 CHECK FOR CRITICAL WARNINGS AND BLOCK IF DETECTED
+          const warnings = result.warnings || [];
+          const suspiciousWarnings = [
+            "high external resources",
+            "javascript obfuscation",
+            "suspicious css"
+          ];
+          const hasCriticalWarnings = warnings.some(
+            (w) => !suspiciousWarnings.some((safe) => w.toLowerCase().includes(safe))
+          );
+
+          if (hasCriticalWarnings && warnings.length > 0) {
+            console.log(`\n🛑 BLOCKING URL - CRITICAL WARNINGS DETECTED: ${warnings.join(', ')}`);
+            updateBadge(tabId, "phishing");
+
+            // Log to Splunk
+            if (typeof ExtensionSplunkLogger !== 'undefined') {
+              ExtensionSplunkLogger.logPhishingDetection(
+                'phishing',
+                tabId.toString(),
+                result.confidence_score || 0.8,
+                warnings,
+                result.url_score || 0,
+                result.visual_score || 0,
+                result.behavior_score || 0
+              );
+            }
+
+            // Redirect to blocked page with threat details
+            const url = payload.url || 'Unknown URL';
+            const params = new URLSearchParams({
+              url: url,
+              warnings: warnings.join('|'),
+              confidence: result.confidence_score || 0.8
+            });
+            const blockPageUrl = chrome.runtime.getURL("blocked.html") + `?${params.toString()}`;
+            chrome.tabs.update(tabId, { url: blockPageUrl });
+            return;
+          }
         }
 
         // Send overlay message to the tab's content script (only if not blocked)
