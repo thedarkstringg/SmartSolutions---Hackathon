@@ -243,7 +243,7 @@
         </div>
         <div class="tl-url-inner">
           <div class="tl-url-label">Blocked destination</div>
-          <div class="tl-url-val" id="urlVal">adultthemes.testcategory.com</div>
+          <div class="tl-url-val" id="urlVal">[Loading URL...]</div>
         </div>
       </div>
 
@@ -289,19 +289,17 @@
 <script>
   // Extract parameters
   const params = new URLSearchParams(window.location.search);
-  const url = params.get('url');
+  const url = params.get('url') || 'Unknown URL';
   const warningsStr = params.get('warnings') || '';
   const confidence = parseFloat(params.get('confidence')) || 0.8;
+
+  // Display URL immediately
+  document.getElementById('urlVal').textContent = url;
 
   // Parse warnings
   const warnings = warningsStr
     ? warningsStr.split('|').filter(w => w.trim())
     : [];
-
-  // Display URL
-  if (url) {
-    document.getElementById('urlVal').textContent = url;
-  }
 
   // Calculate threat level (0-5 scale)
   const threatLevel = Math.min(5, Math.max(1, Math.ceil(warnings.length * confidence / 2)));
