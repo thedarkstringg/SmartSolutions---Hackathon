@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tilloff Active Protection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#e3e2e4",
+                    "primary-container": "#3a506b",
+                    "on-secondary-fixed": "#111a36",
+                    "on-error": "#690005",
+                    "on-tertiary-fixed-variant": "#5b421a",
+                    "on-secondary": "#262f4c",
+                    "outline": "#8e9198",
+                    "surface-container-highest": "#343537",
+                    "surface-container-low": "#1b1c1e",
+                    "secondary-fixed-dim": "#bdc5e9",
+                    "on-primary-fixed": "#021d35",
+                    "on-background": "#e3e2e4",
+                    "primary-fixed": "#d2e4ff",
+                    "on-surface-variant": "#c4c6ce",
+                    "surface-tint": "#b2c8e8",
+                    "on-secondary-fixed-variant": "#3d4664",
+                    "on-primary-fixed-variant": "#324863",
+                    "tertiary-fixed": "#ffddb0",
+                    "surface-container-lowest": "#0d0e10",
+                    "secondary-fixed": "#dbe1ff",
+                    "tertiary-container": "#644a21",
+                    "inverse-surface": "#e3e2e4",
+                    "secondary-container": "#3d4664",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-high": "#292a2c",
+                    "surface-dim": "#121315",
+                    "error-container": "#93000a",
+                    "primary": "#b2c8e8",
+                    "error": "#ffb4ab",
+                    "on-tertiary": "#422c05",
+                    "tertiary-fixed-dim": "#e5c18d",
+                    "surface-bright": "#38393b",
+                    "on-secondary-container": "#abb4d7",
+                    "on-tertiary-container": "#dfbb88",
+                    "inverse-primary": "#4a607c",
+                    "tertiary": "#e5c18d",
+                    "on-primary": "#1b324b",
+                    "primary-fixed-dim": "#b2c8e8",
+                    "on-tertiary-fixed": "#281800",
+                    "surface-container": "#1f2022",
+                    "background": "#121315",
+                    "on-primary-container": "#abc2e2",
+                    "secondary": "#bdc5e9",
+                    "inverse-on-surface": "#303032",
+                    "outline-variant": "#43474d",
+                    "surface": "#121315",
+                    "surface-variant": "#343537"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "container-margin": "24px",
+                    "xl": "32px",
+                    "sm": "12px",
+                    "xs": "8px",
+                    "lg": "24px",
+                    "md": "16px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-base": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "mono-data": ["JetBrains Mono"],
+                    "body-sm": ["Inter"],
+                    "title-sm": ["Inter"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-base": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "mono-data": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { background-color: #0A1128; } /* Mock environment background for preview */
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex items-center justify-center min-h-screen p-4 antialiased selection:bg-primary-container selection:text-white">
+<!-- Browser Extension Popup Container (Simulated) -->
+<!-- Applying "Shell Visibility & Relevance (THE FILTER)" Rule: Suppressing full navs for a transactional/compact view. -->
+<div class="w-[360px] bg-surface text-on-surface rounded-xl flex flex-col shadow-2xl relative overflow-hidden border border-outline-variant/30">
+<!-- Compact Header -->
+<header class="flex justify-between items-center px-4 py-3 border-b border-outline-variant/30 bg-surface-dim/80 backdrop-blur-md z-10">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">security</span>
+<span class="font-title-sm text-title-sm font-bold tracking-tight text-on-surface">Tilloff</span>
+</div>
+<button aria-label="Settings" class="text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center p-1">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 p-4 flex flex-col gap-4 bg-surface z-0">
+<!-- Primary Status Module (Mathematical Precision & Tonal Layering) -->
+<section class="flex flex-col py-5 px-4 bg-[#1C2541] border border-outline-variant/20 rounded-lg relative overflow-hidden group">
+<!-- Subtle grid background for high-tech institutional feel -->
+<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px); background-size: 8px 8px;"></div>
+<div class="relative z-10 flex items-start justify-between w-full">
+<div class="flex flex-col">
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight leading-none mb-1">Protected</h1>
+<span class="font-body-sm text-body-sm text-primary">Active Threat Shield</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-primary-container/30 border border-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[24px]" style="font-variation-settings: 'FILL' 1;">shield_locked</span>
+</div>
+</div>
+<div class="relative z-10 mt-6 flex items-end gap-2">
+<span class="font-display-lg text-display-lg text-on-surface leading-none tracking-tighter">99.9</span>
+<div class="flex flex-col pb-1">
+<span class="font-mono-data text-mono-data text-on-surface-variant">%</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Confidence Index</span>
+</div>
+</div>
+<!-- Confidence Gauge -->
+<div class="w-full h-1 bg-surface-container-highest mt-4 rounded-full overflow-hidden relative z-10">
+<div class="h-full bg-primary w-[99.9%]"></div>
+</div>
+</section>
+<!-- Analysis Heuristics (Mini-Bento Grid) -->
+<section class="flex flex-col gap-2">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant mb-1 uppercase tracking-widest px-1">Analysis Heuristics</h2>
+<div class="grid grid-cols-2 gap-2">
+<!-- URL Verification (Full width, primary heuristic) -->
+<div class="col-span-2 flex flex-col p-3 bg-surface-container rounded border border-outline-variant/20 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-[32px] pointer-events-none"></div>
+<div class="flex items-center justify-between mb-2 z-10">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">link</span>
+<span class="font-label-caps text-label-caps uppercase">URL Topology</span>
+</div>
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-mono-data text-mono-data">Verified</span>
+</div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface truncate z-10 font-mono-data">app.tilloff.enterprise.net</span>
+</div>
+<!-- Visual Analysis (Half width) -->
+<div class="flex flex-col p-3 bg-surface-container rounded border border-outline-variant/20">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">visibility</span>
+<span class="font-mono-data text-mono-data text-primary text-[11px]">Clean</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface">Visual Match</span>
+</div>
+<!-- Behavioral Analysis (Half width) -->
+<div class="flex flex-col p-3 bg-surface-container rounded border border-outline-variant/20">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[16px]">psychology</span>
+<span class="font-mono-data text-mono-data text-primary text-[11px]">Normal</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface">Behavior</span>
+</div>
+</div>
+</section>
+<!-- Actions Area -->
+<section class="mt-2 flex flex-col gap-2">
+<!-- Primary Action (Strict functional styling per brand guidelines) -->
+<button class="w-full py-2.5 bg-[#3A506B] text-white font-body-base text-body-base font-medium rounded hover:bg-[#4a6485] transition-colors flex items-center justify-center gap-2 border border-transparent">
+<span class="material-symbols-outlined text-[18px]">radar</span>
+                    Rescan Context
+                </button>
+<!-- Secondary Action (Ghost style) -->
+<button class="w-full py-2 bg-transparent border border-outline-variant/50 text-on-surface font-body-sm text-body-sm rounded hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-error">flag</span>
+                    Report Suspicious
+                </button>
+</section>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,164 @@
+/* Tilloff Custom Styles Redesign */
+:root {
+  --on-surface: #e3e2e4;
+  --primary-container: #3a506b;
+  --on-secondary-fixed: #111a36;
+  --on-error: #690005;
+  --on-tertiary-fixed-variant: #5b421a;
+  --on-secondary: #262f4c;
+  --outline: #8e9198;
+  --surface-container-highest: #343537;
+  --surface-container-low: #1b1c1e;
+  --secondary-fixed-dim: #bdc5e9;
+  --on-primary-fixed: #021d35;
+  --on-background: #e3e2e4;
+  --primary-fixed: #d2e4ff;
+  --on-surface-variant: #c4c6ce;
+  --surface-tint: #b2c8e8;
+  --on-secondary-fixed-variant: #3d4664;
+  --on-primary-fixed-variant: #324863;
+  --tertiary-fixed: #ffddb0;
+  --surface-container-lowest: #0d0e10;
+  --secondary-fixed: #dbe1ff;
+  --tertiary-container: #644a21;
+  --inverse-surface: #e3e2e4;
+  --secondary-container: #3d4664;
+  --on-error-container: #ffdad6;
+  --surface-container-high: #292a2c;
+  --surface-dim: #121315;
+  --error-container: #93000a;
+  --primary: #b2c8e8;
+  --error: #ffb4ab;
+  --on-tertiary: #422c05;
+  --tertiary-fixed-dim: #e5c18d;
+  --surface-bright: #38393b;
+  --on-secondary-container: #abb4d7;
+  --on-tertiary-container: #dfbb88;
+  --inverse-primary: #4a607c;
+  --tertiary: #e5c18d;
+  --on-primary: #1b324b;
+  --primary-fixed-dim: #b2c8e8;
+  --on-tertiary-fixed: #281800;
+  --surface-container: #1f2022;
+  --background: #121315;
+  --on-primary-container: #abc2e2;
+  --secondary: #bdc5e9;
+  --inverse-on-surface: #303032;
+  --outline-variant: #43474d;
+  --surface: #121315;
+  --surface-variant: #343537;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--on-surface);
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  width: 360px;
+  min-height: 500px;
+}
+
+/* Custom classes from redesign */
+.font-headline-md { font-size: 24px; line-height: 32px; letter-spacing: -0.01em; font-weight: 600; }
+.font-body-base { font-size: 14px; line-height: 20px; font-weight: 400; }
+.font-display-lg { font-size: 36px; line-height: 44px; letter-spacing: -0.02em; font-weight: 600; }
+.font-mono-data { font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 20px; font-weight: 400; }
+.font-body-sm { font-size: 12px; line-height: 18px; font-weight: 400; }
+.font-title-sm { font-size: 18px; line-height: 24px; font-weight: 500; }
+.font-label-caps { font-size: 11px; line-height: 16px; letter-spacing: 0.05em; font-weight: 700; text-transform: uppercase; }
+
+/* Background Utility Classes */
+.bg-surface { background-color: var(--surface); }
+.bg-surface-dim { background-color: var(--surface-dim); }
+.bg-surface-container { background-color: var(--surface-container); }
+.bg-surface-container-high { background-color: var(--surface-container-high); }
+.bg-surface-container-highest { background-color: var(--surface-container-highest); }
+.bg-primary-container { background-color: var(--primary-container); }
+.bg-error-container { background-color: var(--error-container); }
+
+/* Text Utility Classes */
+.text-on-surface { color: var(--on-surface); }
+.text-on-surface-variant { color: var(--on-surface-variant); }
+.text-primary { color: var(--primary); }
+.text-error { color: var(--error); }
+.text-on-primary { color: var(--on-primary); }
+
+/* Layout Helpers (since we don't have full tailwind) */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.flex-1 { flex: 1; }
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+
+/* Spacing Helpers */
+.p-3 { padding: 12px; }
+.p-4 { padding: 16px; }
+.p-6 { padding: 24px; }
+.px-1 { padding-left: 4px; padding-right: 4px; }
+.px-4 { padding-left: 16px; padding-right: 16px; }
+.py-2\.5 { padding-top: 10px; padding-bottom: 10px; }
+.py-3 { padding-top: 12px; padding-bottom: 12px; }
+.py-5 { padding-top: 20px; padding-bottom: 20px; }
+.py-12 { padding-top: 48px; padding-bottom: 48px; }
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mt-6 { margin-top: 24px; }
+.mb-1 { margin-bottom: 4px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-4 { margin-bottom: 16px; }
+.mb-8 { margin-bottom: 32px; }
+
+/* Borders and Radii */
+.border { border: 1px solid transparent; }
+.border-b { border-bottom: 1px solid transparent; }
+.border-outline-variant\/20 { border-color: rgba(67, 71, 77, 0.2); }
+.border-outline-variant\/30 { border-color: rgba(67, 71, 77, 0.3); }
+.border-outline-variant\/50 { border-color: rgba(67, 71, 77, 0.5); }
+.border-primary\/20 { border-color: rgba(178, 200, 232, 0.2); }
+.border-error\/20 { border-color: rgba(255, 180, 171, 0.2); }
+.rounded { border-radius: 4px; }
+.rounded-lg { border-radius: 8px; }
+.rounded-xl { border-radius: 12px; }
+.rounded-full { border-radius: 9999px; }
+
+/* Special Elements */
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+.fill { font-variation-settings: 'FILL' 1; }
+
+.shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+.backdrop-blur-md { backdrop-filter: blur(12px); }
+.animate-spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Transitions */
+.transition-all { transition: all 0.2s ease; }
+.duration-1000 { transition-duration: 1000ms; }
+.duration-500 { transition-duration: 500ms; }
+
+/* Overlay and panels */
+.fixed { position: fixed; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.z-50 { z-index: 50; }
+.bg-black\/60 { background-color: rgba(0, 0, 0, 0.6); }
+
+/* Custom Grid BG from Redesign */
+.primary-status-grid-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    pointer-events: none;
+    background-image: linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px);
+    background-size: 8px 8px;
+}

@@ -156,31 +156,23 @@ async function loadResult() {
 
 // === UI STATE FUNCTIONS ===
 function showLoading() {
-  loadingState.classList.add("visible");
   loadingState.classList.remove("hidden");
   resultsState.classList.add("hidden");
-  resultsState.classList.remove("visible");
   errorState.classList.add("hidden");
-  errorState.classList.remove("visible");
 }
 
 function showError(message) {
   loadingState.classList.add("hidden");
-  loadingState.classList.remove("visible");
   resultsState.classList.add("hidden");
-  resultsState.classList.remove("visible");
   errorState.classList.remove("hidden");
-  errorState.classList.add("visible");
-  document.getElementById("error-message").textContent = message;
+  const errorMsgEl = document.getElementById("error-message");
+  if (errorMsgEl) errorMsgEl.textContent = message;
 }
 
 function displayResult(result) {
   loadingState.classList.add("hidden");
-  loadingState.classList.remove("visible");
   errorState.classList.add("hidden");
-  errorState.classList.remove("visible");
   resultsState.classList.remove("hidden");
-  resultsState.classList.add("visible");
 
   const {
     url_score,
@@ -202,28 +194,41 @@ function displayResult(result) {
   const domain = site_info?.domain || "Unknown";
   document.getElementById("siteUrl").textContent = domain;
 
-  // Display verdict badge
+  // Display verdict text and badge
   const verdictBadge = document.getElementById("verdictBadge");
   const verdictText = document.getElementById("verdictText");
+  const verdictIcon = verdictBadge.querySelector(".material-symbols-outlined");
 
-  verdictBadge.className = "verdict-badge";
+  // Reset classes
+  verdictBadge.className = "w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-500";
+  verdictText.className = "font-headline-md tracking-tight leading-none mb-1 transition-all duration-500";
+  
   if (verdict === "safe") {
-    verdictBadge.classList.add("safe");
-    verdictText.textContent = "SAFE";
+    verdictBadge.classList.add("bg-primary-container/30", "border-primary/20");
+    verdictText.classList.add("text-on-surface");
+    verdictText.textContent = "Protected";
+    verdictIcon.textContent = "shield_locked";
+    verdictIcon.className = "material-symbols-outlined text-primary fill";
+    verdictIcon.style.fontSize = "24px";
   } else if (verdict === "suspicious") {
-    verdictBadge.classList.add("suspicious");
-    verdictText.textContent = "SUSPICIOUS";
+    verdictBadge.classList.add("bg-tertiary-container/30", "border-tertiary/20");
+    verdictText.classList.add("text-tertiary");
+    verdictText.textContent = "Suspicious";
+    verdictIcon.textContent = "gpp_maybe";
+    verdictIcon.className = "material-symbols-outlined text-tertiary fill";
+    verdictIcon.style.fontSize = "24px";
   } else if (verdict === "phishing") {
-    verdictBadge.classList.add("phishing");
-    verdictText.textContent = "PHISHING";
-  } else {
-    verdictBadge.classList.add("suspicious");
-    verdictText.textContent = "UNKNOWN";
+    verdictBadge.classList.add("bg-error-container/30", "border-error/20");
+    verdictText.classList.add("text-error");
+    verdictText.textContent = "Danger";
+    verdictIcon.textContent = "gpp_bad";
+    verdictIcon.className = "material-symbols-outlined text-error fill";
+    verdictIcon.style.fontSize = "24px";
   }
 
   // Display confidence score
   const confidencePercent = Math.round((confidence_score || 0) * 100);
-  document.getElementById("confidenceValue").textContent = `${confidencePercent}%`;
+  document.getElementById("confidenceValue").textContent = `${confidencePercent}`;
   updateProgressBar("confidenceBar", confidence_score || 0, verdict);
 
   // Display individual scores
@@ -231,7 +236,7 @@ function displayResult(result) {
   document.getElementById("visualScoreValue").textContent = (visual_score || 0).toFixed(2);
   document.getElementById("behaviorScoreValue").textContent = (behavior_score || 0).toFixed(2);
 
-  // Display warnings with severity
+  // Display warnings
   const warningsSection = document.getElementById("warnings-section");
   const warningsList = document.getElementById("warnings-list");
 
@@ -240,29 +245,19 @@ function displayResult(result) {
     warnings.forEach((warning) => {
       const li = document.createElement("li");
       const severity = warning_details?.[warning] || "WARNING";
+      
+      let badgeClass = "bg-tertiary-container/20 text-tertiary border-tertiary/20";
+      if (severity === "CRITICAL") badgeClass = "bg-error-container/20 text-error border-error/20";
 
-      // Create warning item with severity badge
+      li.className = "flex items-start justify-between gap-2 font-mono-data";
+      li.style.fontSize = "11px";
+      li.style.lineHeight = "1.25";
       li.innerHTML = `
-        <span class="warning-text">${warning}</span>
-        <span class="warning-badge severity-${severity.toLowerCase()}">${severity}</span>
+        <span class="text-on-surface-variant flex-1">${warning}</span>
+        <span class="px-1.5 py-0.5 rounded border font-label-caps ${badgeClass}" style="font-size: 9px;">${severity}</span>
       `;
-      li.style.display = "flex";
-      li.style.justifyContent = "space-between";
-      li.style.alignItems = "center";
-      li.style.padding = "8px 0";
       warningsList.appendChild(li);
     });
-
-    // Add "View Details" button
-    const detailsBtn = document.createElement("button");
-    detailsBtn.id = "view-details-btn";
-    detailsBtn.textContent = "View Details →";
-    detailsBtn.className = "btn btn-secondary";
-    detailsBtn.style.marginTop = "12px";
-    detailsBtn.style.width = "100%";
-    detailsBtn.addEventListener("click", openDetailsModal);
-    warningsList.parentElement.appendChild(detailsBtn);
-
     warningsSection.classList.remove("hidden");
   } else {
     warningsSection.classList.add("hidden");
@@ -276,9 +271,9 @@ function displayResult(result) {
 
     let timeStr = "just now";
     if (secondsAgo > 60) {
-      timeStr = `${Math.floor(secondsAgo / 60)} minutes ago`;
+      timeStr = `${Math.floor(secondsAgo / 60)}m ago`;
     } else if (secondsAgo > 0) {
-      timeStr = `${secondsAgo} seconds ago`;
+      timeStr = `${secondsAgo}s ago`;
     }
 
     document.getElementById("timestamp").textContent = `Last scanned: ${timeStr}`;
@@ -291,15 +286,15 @@ function updateProgressBar(elementId, score, type) {
   const percentage = Math.round((score || 0) * 100);
   bar.style.width = `${percentage}%`;
 
-  bar.className = "progress-fill";
+  bar.className = "h-full transition-all duration-1000";
   if (type === "safe") {
-    bar.classList.add("safe-fill");
+    bar.classList.add("bg-primary");
   } else if (type === "suspicious") {
-    bar.classList.add("suspicious-fill");
+    bar.classList.add("bg-tertiary");
   } else if (type === "phishing") {
-    bar.classList.add("phishing-fill");
+    bar.classList.add("bg-error");
   } else {
-    bar.classList.add("safe-fill");
+    bar.classList.add("bg-primary");
   }
 }
 
